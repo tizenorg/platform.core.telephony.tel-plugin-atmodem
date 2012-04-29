@@ -1,0 +1,19 @@
+Source: tel-plugin-atmodem
+Section: libs
+Priority: extra
+Maintainer: Jongman Park <jman.park@samsung.com>
+Uploaders: Jayoung Gu <jygu@samsung.com>, Kyeongchul Kim <kyeongchul.kim@samsung.com>, Youngman Park <youngman.park@samsung.com>, Inho Oh <inho48.oh@samsung.com>,  DongHoo Park <donghoo.park@samsung.com>
+Build-Depends: debhelper (>= 5), libglib2.0-dev, libtcore-dev, dlog-dev, libslp-db-util-dev
+Standards-Version: 0.0.0
+
+Package: tel-plugin-atmodem
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+Description: telephony client API library (Shared Object)
+
+Package: tel-plugin-atmodem-dbg
+Section: debug
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, tel-plugin-atmodem (= ${Source-Version})
+Description: telephony client API library (dbg package)

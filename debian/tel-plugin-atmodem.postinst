@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#create db
+mkdir -p /opt/dbspace/
+
+if [ ! -f /opt/dbspace/.mcc_mnc_oper_list.db ]
+then
+	sqlite3 /opt/dbspace/.mcc_mnc_oper_list.db < /tmp/mcc_mnc_oper_list.sql
+fi
+
+rm -f /tmp/mcc_mnc_oper_list.sql
+
+if [ -f /opt/dbspace/.mcc_mnc_oper_list.db ]
+then
+	chmod 600 /opt/dbspace/.mcc_mnc_oper_list.db
+fi
+
+if [ -f /opt/dbspace/.mcc_mnc_oper_list.db-journal ]
+then
+	chmod 644 /opt/dbspace/.mcc_mnc_oper_list.db-journal
+fi
