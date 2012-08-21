@@ -65,9 +65,9 @@ static void on_confirmation_ps_message_send( TcorePending *p, gboolean result, v
 	metainfo = (struct ATReqMetaInfo*)tcore_user_request_ref_metainfo(ur,&info_len);
 
 	if ((metainfo->type == SINGLELINE)||(metainfo->type == MULTILINE))	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    	dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else {
 		s_responsePrefix = NULL;
@@ -128,26 +128,26 @@ static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, v
 	char *line = NULL, *ip = NULL, *gateway = NULL;//, *netmask = NULL;
 
 	/* count the PDP contexts */
-    for (pdpContextCnt = 0, p_cur = p_response->p_intermediates
-            ; p_cur != NULL
-            ; p_cur = p_cur->p_next) {
-        pdpContextCnt++;
-    }
-	
-    dbg("Total number of PDP contexts : %d",pdpContextCnt);
+	for (pdpContextCnt = 0, p_cur = p_response->p_intermediates
+			; p_cur != NULL
+			; p_cur = p_cur->p_next) {
+		pdpContextCnt++;
+	}
 
-    if(pdpContextCnt == 0)
+	dbg("Total number of PDP contexts : %d",pdpContextCnt);
+
+	if(pdpContextCnt == 0)
 		return;
 
 	for (p_cur = p_response->p_intermediates
-          		; p_cur != NULL
-           		; p_cur = p_cur->p_next) {
+			; p_cur != NULL
+			; p_cur = p_cur->p_next) {
 		line = p_response->p_intermediates->line;
-		
+
 		err = at_tok_start(&line);
 		err = at_tok_nextint(&line,&p_cid);
 		dbg("cid: %d", p_cid);
-	
+
 		/* Send IP Configuration noti only on the requested CID. */
 		if (p_cid && (cid == (unsigned int)p_cid))	{
 			err = at_tok_nextstr(&line,&pdp_type);
@@ -181,7 +181,7 @@ static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, v
 				dbg("inet_pton() failed.");
 				return;
 			}
-			
+
 			snprintf(addr_buf[0], 20, "%d.%d.%d.%d", noti.ip_address[0], noti.ip_address[1],
 					noti.ip_address[2], noti.ip_address[3]);
 			ip = addr_buf[0];
@@ -206,7 +206,7 @@ static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, v
 			gateway = addr_buf[3];
 			dbg("gateway = [%s]", gateway);
 
-			/* FIX ME: use static netmask. */		
+			/* FIX ME: use static netmask. */
 			noti.subnet_mask[0] = 255;
 			noti.subnet_mask[1] = 255;
 			noti.subnet_mask[2] = 255;
@@ -237,19 +237,19 @@ static void on_response_get_ipconfiguration(TcorePending *pending, int data_len,
 	struct ATLine *p_cur;
 	CoreObject *ps_context = (CoreObject *)user_data;
 	char *line = NULL;
-	
+
 	printResponse();
 
 	if (sp_response->success > 0) {
 		dbg("RESPONSE OK");
-		
+
 		for (p_cur = sp_response->p_intermediates
-          		; p_cur != NULL
-           		; p_cur = p_cur->p_next) {
+				; p_cur != NULL
+				; p_cur = p_cur->p_next) {
 			line = sp_response->p_intermediates->line;
 			dbg("%s\n", line);
 		}
-		
+
 		dbg("Call on_ipc_event_ps_ipconfiguration");
 		on_event_ps_ipconfiguration(tcore_pending_ref_core_object(pending), sp_response, ps_context);
 	}
@@ -280,7 +280,7 @@ static void on_response_ps_attached(TcorePending *p, int data_len, const void *d
 		dbg("RESPONSE OK");
 		line = sp_response->p_intermediates->line;
 		dbg("on_response_ps_attached: %s", line);
-		
+
 		ur = tcore_user_request_new(NULL, NULL);
 		memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 		memcpy(metainfo.responsePrefix,"+CGDCONT:",strlen("+CGDCONT:"));
@@ -293,22 +293,22 @@ static void on_response_ps_attached(TcorePending *p, int data_len, const void *d
 		cmd_str = g_strdup("AT+CGDCONT?\r");
 
 		pl = tcore_object_ref_plugin(o);
-		h = tcore_plugin_ref_hal(pl);
+		h = tcore_object_get_hal(o);
 		pending = tcore_pending_new(o, ID_RESERVED_AT);
 		tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 		free(cmd_str);
-		
+
 		tcore_pending_set_timeout(pending, 0);
 		tcore_pending_set_response_callback(pending, on_response_get_ipconfiguration, ps_context);
 		tcore_pending_link_user_request(pending, ur);
 		tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
 		tcore_pending_set_send_callback(pending, on_confirmation_ps_message_send, NULL);
-		tcore_hal_send_request(h, pending);	
+		tcore_hal_send_request(h, pending);
 	}
 	else {
 		dbg("RESPONSE NOK");
 	}
-	
+
 	ReleaseResponse();
 }
 
@@ -324,7 +324,7 @@ static void on_response_active_set(TcorePending *p, int data_len, const void *da
 	char* cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
-	
+
 	printResponse();
 
 	if (sp_response->success > 0) {
@@ -336,19 +336,19 @@ static void on_response_active_set(TcorePending *p, int data_len, const void *da
 		info_len = sizeof(struct ATReqMetaInfo);
 
 		tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 		dbg(" Send: ATD*99***1#\r ");
 		cmd_str = g_strdup("ATD*99***1#\r");
 
 		pl = tcore_object_ref_plugin(o);
-		h = tcore_plugin_ref_hal(pl);
+		h = tcore_object_get_hal(o);
 		pending = tcore_pending_new(o, ID_RESERVED_AT);
-				
+
 		tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 		free(cmd_str);
 
 		tcore_pending_set_timeout(pending, 0);
-		tcore_pending_set_response_callback(pending, on_response_ps_attached, ps_context);		
+		tcore_pending_set_response_callback(pending, on_response_ps_attached, ps_context);
 		tcore_pending_link_user_request(pending, ur);
 		tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
 		tcore_pending_set_send_callback(pending, on_confirmation_ps_message_send, NULL);
@@ -357,7 +357,7 @@ static void on_response_active_set(TcorePending *p, int data_len, const void *da
 	else {
 		dbg("RESPONSE NOK");
 		tcore_context_set_state(ps_context, CONTEXT_STATE_DEACTIVATED);
-	}	
+	}
 
 	ReleaseResponse();
 }
@@ -371,7 +371,7 @@ static void on_response_deactive_set(TcorePending *p, int data_len, const void *
 	}
 	else {
 		dbg("RESPONSE NOK");
-	}	
+	}
 
 	ReleaseResponse();
 }
@@ -380,39 +380,39 @@ static gboolean pdp_active_set(CoreObject *o, CoreObject *ps_context)
 {
 	TcorePlugin *p = NULL;
 	TcoreHal *h = NULL;
-	TcorePending *pending = NULL;	
+	TcorePending *pending = NULL;
 	UserRequest *ur;
 
 	unsigned int cid;
-	char* cmd_str = NULL; 	
+	char* cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
-	
+
 	if ( !o )
 		return TCORE_RETURN_FAILURE;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
-	
-    ur = tcore_user_request_new(NULL, NULL);
+
+	ur = tcore_user_request_new(NULL, NULL);
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
 	info_len = sizeof(struct ATReqMetaInfo);
 
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	cid = tcore_context_get_id(ps_context);
-	
+
 	dbg("Example: AT+CGACT=1,0");
 	cmd_str = g_strdup_printf("%s=%d,%d%s","AT+CGACT", 1, cid, "\r");
-	
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	free(cmd_str);
 
 	tcore_pending_set_timeout(pending, 0);
-	tcore_pending_set_response_callback(pending, on_response_active_set, ps_context);	
+	tcore_pending_set_response_callback(pending, on_response_active_set, ps_context);
 	tcore_pending_link_user_request(pending, ur);
 	tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
 	tcore_pending_set_send_callback(pending, on_confirmation_ps_message_send, NULL);
@@ -428,13 +428,13 @@ static void on_response_define_pdp(TcorePending *p, int data_len, const void *da
 	printResponse();
 
 	if (sp_response->success > 0) {
-		dbg("RESPONSE OK");			
+		dbg("RESPONSE OK");
 		pdp_active_set(tcore_pending_ref_core_object(p), ps_context);
 	}
 	else {
 		dbg("RESPONSE NOK");
 		tcore_context_set_state(tcore_pending_ref_core_object(p), CONTEXT_STATE_DEACTIVATED);
-	}	
+	}
 
 	ReleaseResponse();
 }
@@ -451,16 +451,16 @@ static TReturn activate_ps_context(CoreObject *o, CoreObject *ps_context, void *
 	unsigned int cid;
 	enum co_context_type pdp_type;
 	enum co_context_d_comp d_comp;
-	enum co_context_h_comp h_comp;	
+	enum co_context_h_comp h_comp;
 	char *cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
-	int info_len =0;	
+	int info_len =0;
 
 	if ( !o )
 		return TCORE_RETURN_FAILURE;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
     ur = tcore_user_request_new(NULL, NULL);
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -472,10 +472,10 @@ static TReturn activate_ps_context(CoreObject *o, CoreObject *ps_context, void *
 	pdp_type = tcore_context_get_type(ps_context);
 	d_comp = tcore_context_get_data_compression(ps_context);
 	h_comp = tcore_context_get_header_compression(ps_context);
-	
+
 	dbg("Example: AT+CGDCONT=1,\"IP\",\"www.example.co.kr\",,0,0");
-	cmd_str = g_strdup_printf("AT+CGDCONT=%d,\"%d\",\"%s\",%s,%d,%d%s", 
-		cid, pdp_type, apn, addr, d_comp, h_comp, "\r");
+	cmd_str = g_strdup_printf("AT+CGDCONT=%d,\"%d\",\"%s\",%s,%d,%d%s",
+			cid, pdp_type, apn, addr, d_comp, h_comp, "\r");
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
@@ -499,26 +499,26 @@ static TReturn deactivate_ps_context(CoreObject *o, CoreObject *ps_context, void
 	UserRequest *ur;
 
 	unsigned int cid;
-	char* cmd_str = NULL; 	
+	char* cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
-	int info_len =0;	
+	int info_len =0;
 
 	if ( !o )
 		return TCORE_RETURN_FAILURE;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	ur = tcore_user_request_new(NULL, NULL);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	cid = tcore_context_get_id(ps_context);
-	
+
 	dbg("Example: AT+CGACT=0,1");
 	cmd_str = g_strdup_printf("%s=%d,%d%s","AT+CGACT", 0, cid, "\r");
-	
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	free(cmd_str);
@@ -535,17 +535,16 @@ static TReturn deactivate_ps_context(CoreObject *o, CoreObject *ps_context, void
 
 static struct tcore_ps_operations ps_ops =
 {
-	.pin_ctrl = NULL,
 	.activate_context = activate_ps_context,
 	.deactivate_context = deactivate_ps_context
 };
 
-gboolean s_ps_init(TcorePlugin *p)
+gboolean s_ps_init(TcorePlugin *p, TcoreHal *h)
 {
 	CoreObject *o;
 	GQueue *work_queue;
 
-	o = tcore_ps_new(p, "umts_ps", &ps_ops);
+	o = tcore_ps_new(p, "umts_ps", &ps_ops, h);
 	if (!o)
 		return FALSE;
 

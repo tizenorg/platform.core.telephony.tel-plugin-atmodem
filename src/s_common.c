@@ -116,7 +116,7 @@ gboolean util_add_waiting_job(GQueue *queue, unsigned int id, UserRequest *ur)
 		return FALSE;
 
 	wqd->id = id;
-	wqd->ur = tcore_user_request_dup(ur);
+	wqd->ur = tcore_user_request_ref(ur);
 	g_queue_push_tail(queue, wqd);
 
 	dbg("id = %d, ur = 0x%x", wqd->id, wqd->ur);

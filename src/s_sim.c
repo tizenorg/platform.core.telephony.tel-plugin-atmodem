@@ -113,38 +113,38 @@ struct s_sim_property {
 enum s_sim_sec_locktype_e{
 	SEC_LOCK_TYPE_NONE =0,
 	SEC_LOCK_TYPE_READY,	/*  ME is not locked */
-	SEC_LOCK_TYPE_PS,		/* PH-SIM, Lock Phone to SIM/UICC card(MT asks password when other than current SIM/UICC card inserted; MT may remember certain amount of 
-                                                         previously used cards thus not requiring password when they are inserted ) */ 
-	SEC_LOCK_TYPE_PF,      	/*  PH-FSIM, Lock Phone to the very First  inserted SIM/UICC card ( MT asks password when other than the first SIM/UICC card is inserted ) */
-	SEC_LOCK_TYPE_SC,      	/*Lock SIM/UICC card ( SIM asks password in ME power-up and when this command is issued ) */
-	SEC_LOCK_TYPE_FD,      	/* SIM card or active application in the UICC(GSM or USIM) fixed dialing memory feature */
+	SEC_LOCK_TYPE_PS,		/* PH-SIM, Lock Phone to SIM/UICC card(MT asks password when other than current SIM/UICC card inserted; MT may remember certain amount of
+                                                         previously used cards thus not requiring password when they are inserted ) */
+	SEC_LOCK_TYPE_PF,	/*  PH-FSIM, Lock Phone to the very First  inserted SIM/UICC card ( MT asks password when other than the first SIM/UICC card is inserted ) */
+	SEC_LOCK_TYPE_SC,	/*Lock SIM/UICC card ( SIM asks password in ME power-up and when this command is issued ) */
+	SEC_LOCK_TYPE_FD,	/* SIM card or active application in the UICC(GSM or USIM) fixed dialing memory feature */
 	SEC_LOCK_TYPE_PN,		/*  Network Personalization */
-	SEC_LOCK_TYPE_PU,      	/*  Network subset Personalization */
-	SEC_LOCK_TYPE_PP,      	/*  Service Provider Personalization */
-  	SEC_LOCK_TYPE_PC,      	/*  Corporate Personalization */
-  	SEC_LOCK_TYPE_SC2,    	/*  Lock PIN2 ( ... ) */
-  	SEC_LOCL_TYPE_PUK2,	/*  Lock PUK2 (... ) */
-  	SEC_LOCK_TYPE_ACL,	/* ACL */
-  
-  	SEC_LOCK_TYPE_NO_SIM,		/* SIM is not inserted */
-  	SEC_LOCK_TYPE_UNAVAIL,	/*  SIM is inserted but can not communicate with SIM ( SIM interface error ) */
-  	SEC_SIM_INIT_COMPLETED,	/*  SIM Initialize Completed */  
-  	SEC_PB_INIT_COMPLETED,	/*  Phonebook Initialize Completed*/
-  	SEC_SIM_INIT_CRASH,		/*  SIM Crash request from SMC lab*/  
-  
-  	SEC_LOCK_TYPE_MAX
+	SEC_LOCK_TYPE_PU,	/*  Network subset Personalization */
+	SEC_LOCK_TYPE_PP,	/*  Service Provider Personalization */
+	SEC_LOCK_TYPE_PC,	/*  Corporate Personalization */
+	SEC_LOCK_TYPE_SC2,	/*  Lock PIN2 ( ... ) */
+	SEC_LOCL_TYPE_PUK2,	/*  Lock PUK2 (... ) */
+	SEC_LOCK_TYPE_ACL,	/* ACL */
+
+	SEC_LOCK_TYPE_NO_SIM,		/* SIM is not inserted */
+	SEC_LOCK_TYPE_UNAVAIL,	/*  SIM is inserted but can not communicate with SIM ( SIM interface error ) */
+	SEC_SIM_INIT_COMPLETED,	/*  SIM Initialize Completed */
+	SEC_PB_INIT_COMPLETED,	/*  Phonebook Initialize Completed*/
+	SEC_SIM_INIT_CRASH,		/*  SIM Crash request from SMC lab*/
+
+	SEC_LOCK_TYPE_MAX
 };
 
 enum s_sim_sec_lockkey_e{
 	SEC_LOCK_KEY_NONE,
- 	SEC_LOCK_KEY_UNLOCKED,  		/* Not necessary */
- 	SEC_LOCK_KEY_PIN,             		/* PIN required as a password */
- 	SEC_LOCK_KEY_PUK,            		/* 0PUK required as a password */
- 	SEC_LOCK_KEY_PIN2,           		/* PIN2 required as a password */
- 	SEC_LOCK_KEY_PUK2,           		/*  PUK2 required as a password */
- 	SEC_LOCK_KEY_PERM_BLOCKED,    /* PIN Permanent Blocked */ 
- 	SEC_LOCK_KEY_PIN2_DISABLE,     /* PIN2 Lock Disabled*/
- 	SEC_LOCK_KEY_MAX
+	SEC_LOCK_KEY_UNLOCKED,		/* Not necessary */
+	SEC_LOCK_KEY_PIN,		/* PIN required as a password */
+	SEC_LOCK_KEY_PUK,		/* 0PUK required as a password */
+	SEC_LOCK_KEY_PIN2,		/* PIN2 required as a password */
+	SEC_LOCK_KEY_PUK2,		/*  PUK2 required as a password */
+	SEC_LOCK_KEY_PERM_BLOCKED,    /* PIN Permanent Blocked */
+	SEC_LOCK_KEY_PIN2_DISABLE,     /* PIN2 Lock Disabled*/
+	SEC_LOCK_KEY_MAX
 };
 
 
@@ -165,16 +165,16 @@ static gboolean _convert_SCPIN_noti(char* line, enum s_sim_sec_locktype_e* lock_
 	int err;
 	if(line == NULL)
 		return FALSE;
-		
+
 	dbg("incoming string : %s\n", line);
-	
+
 	//rip off %SCPIN:
 	at_tok_start(&line);
 
 	// 1. find type string
 	err = at_tok_nextstr(&line, &type);
 	if(err<0){
-	// no type string found. 
+		// no type string found.
 		type = NULL;
 	}
 	if(type !=NULL){
@@ -224,8 +224,8 @@ static gboolean _convert_SCPIN_noti(char* line, enum s_sim_sec_locktype_e* lock_
 		else if(strStartsWith (type, "INIT_ERROR"))
 			*lock_type = SEC_SIM_INIT_CRASH;
 		else
-			*lock_type = SEC_LOCK_TYPE_NONE;			
-	}		
+			*lock_type = SEC_LOCK_TYPE_NONE;
+	}
 	else
 		type = SEC_LOCK_TYPE_NONE;
 
@@ -248,23 +248,23 @@ static gboolean _convert_SCPIN_noti(char* line, enum s_sim_sec_locktype_e* lock_
 		else
 			*lock_key = SEC_LOCK_KEY_NONE;
 	}
-	else 
+	else
 		*lock_key = SEC_LOCK_KEY_NONE;
-		
-	
-// 4. apply exceptional case. 
+
+
+	// 4. apply exceptional case.
 	//if type is READY, key has no meanig
-		if(*lock_type ==  SEC_LOCK_TYPE_READY)
-			*lock_key = SEC_LOCK_KEY_UNLOCKED;
+	if(*lock_type ==  SEC_LOCK_TYPE_READY)
+		*lock_key = SEC_LOCK_KEY_UNLOCKED;
 
 	// no sim, unvail, init_comp, init_error have no key info
-		if((*lock_type == SEC_LOCK_TYPE_NO_SIM)||(*lock_type == SEC_LOCK_TYPE_UNAVAIL)||
+	if((*lock_type == SEC_LOCK_TYPE_NO_SIM)||(*lock_type == SEC_LOCK_TYPE_UNAVAIL)||
 			(*lock_type == SEC_SIM_INIT_COMPLETED)||(*lock_type == SEC_SIM_INIT_CRASH))
-			*lock_key = SEC_LOCK_KEY_NONE;
-	
+		*lock_key = SEC_LOCK_KEY_NONE;
+
 	dbg("type : %d, key : %d\n", *lock_type, *lock_key);
-	
-	return TRUE;	
+
+	return TRUE;
 }
 
 static enum tcore_response_command _find_resp_command(UserRequest *ur)
@@ -335,11 +335,8 @@ static enum tcore_response_command _find_resp_command(UserRequest *ur)
 		case TREQ_SIM_GET_PNN:
 			return TRESP_SIM_GET_PNN;
 			break;
-		case TREQ_SIM_GET_CPHS_SHORTNETNAME:
-			return TRESP_SIM_GET_CPHS_SHORTNETNAME;
-			break;
-		case TREQ_SIM_GET_CPHS_FULLNETNAME:
-			return TRESP_SIM_GET_CPHS_FULLNETNAME;
+		case TREQ_SIM_GET_CPHS_NETNAME:
+			return TRESP_SIM_GET_CPHS_NETNAME;
 			break;
 		case TREQ_SIM_GET_OPLMNWACT:
 			return TRESP_SIM_GET_OPLMNWACT;
@@ -883,9 +880,9 @@ static void on_confirmation_sim_message_send( TcorePending *p, gboolean result, 
 	if((metainfo->type == SINGLELINE)||
 		(metainfo->type == MULTILINE))
 	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);	
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else
 	{
@@ -894,7 +891,7 @@ static void on_confirmation_sim_message_send( TcorePending *p, gboolean result, 
 
 	//set atcmd type into s_type
 	s_type = metainfo->type;
-	
+
 	if (result == FALSE) {
 		/* Fail */
 		dbg("SEND FAIL");
@@ -911,19 +908,19 @@ static void _response_get_sim_type(TcorePending *p, int data_len, const void *da
 	enum tel_sim_type sim_type = SIM_TYPE_UNKNOWN;
 	char* line=NULL;
 	int ret = 0;
-	
+
 	if(sp_response->success > 0)
 	{
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,(int *)&sim_type);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
-	}	
+			AT_TOK_ERROR(line);
+	}
 	else
 	{
 		sim_type = SIM_TYPE_UNKNOWN;
@@ -932,11 +929,11 @@ static void _response_get_sim_type(TcorePending *p, int data_len, const void *da
 	dbg("resp sim type[%d]", sim_type);
 
 	ReleaseResponse();
-	
+
 	co_sim = tcore_pending_ref_core_object(p);
 	tcore_sim_set_type(co_sim, sim_type);
 	sp = tcore_sim_ref_userdata(co_sim);
-	_sim_status_update(co_sim, sp->first_recv_status);		
+	_sim_status_update(co_sim, sp->first_recv_status);
 }
 
 static void _response_get_file_info(TcorePending *p, int data_len, const void *data, void *user_data)
@@ -952,7 +949,7 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 	int sw2 = 0;
 	//char *hexData;
 	//char *recordData;
-	
+
 	co_sim = tcore_pending_ref_core_object(p);
 	if(!co_sim){
 		dbg("error -  core object is null");
@@ -991,15 +988,15 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 			unsigned char file_type_tag = 0x07;
 			unsigned char *ptr_data;
 
-			char *hexData;	
+			char *hexData;
 			char *recordData;
 			ret = at_tok_nextstr(&line,&hexData);
 			if (ret < 0)
 				AT_TOK_ERROR(line);
-			
+
 			recordData = util_hexStringToBytes(hexData);
 			util_hex_dump("    ", strlen(hexData)/2, recordData);
-		
+
 			ptr_data = (unsigned char *)recordData;
 			if (tcore_sim_get_type(co_sim) == SIM_TYPE_USIM) {
 				/*
@@ -1102,7 +1099,7 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 					} else {
 						dbg("INVALID FCP received - DEbug!");
 						free(recordData);
-						ReleaseResponse();						
+						ReleaseResponse();
 						return;
 					}
 
@@ -1179,7 +1176,7 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 					} else {
 						dbg("INVALID FCP received[0x%x] - DEbug!", *ptr_data);
 						free(recordData);
-						ReleaseResponse();						
+						ReleaseResponse();
 						return;
 					}
 
@@ -1308,8 +1305,8 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 						dbg(" not handled file type");
 						break;
 				}
-			} 
-			else 
+			}
+			else
 			{
 				dbg(" Card Type - UNKNOWN  [%d]", tcore_sim_get_type(co_sim));
 			}
@@ -1325,7 +1322,7 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 			rt = SIM_ACCESS_SUCCESS;
 			free(recordData);
 		}
-		else 
+		else
 		{
 			/*2. SIM access fail case*/
 			dbg("error to get ef[0x%x]", file_meta->file_id);
@@ -1334,7 +1331,7 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 
 		ReleaseResponse();
 
-		ur = tcore_user_request_dup(ur);
+		ur = tcore_user_request_ref(ur);
 		_next_from_get_file_info(co_sim, ur, file_meta->file_id, rt);
 	}
 	else
@@ -1343,8 +1340,8 @@ static void _response_get_file_info(TcorePending *p, int data_len, const void *d
 		dbg("error to get ef[0x%x]", file_meta->file_id);
 		rt = SIM_ACCESS_FAILED;;
 
-		ur = tcore_user_request_dup(ur);
-		_next_from_get_file_info(co_sim, ur, file_meta->file_id, rt);	
+		ur = tcore_user_request_ref(ur);
+		_next_from_get_file_info(co_sim, ur, file_meta->file_id, rt);
 	}
 }
 
@@ -1375,9 +1372,9 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 	file_meta = (struct s_sim_property*)tcore_user_request_ref_metainfo(ur, NULL);
 
 	if(sp_response->success > 0)
-	{		
+	{
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -1396,14 +1393,14 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 			ret = at_tok_nextstr(&line,&hexStr);
 			if (ret < 0)
 				AT_TOK_ERROR(line);
-			
+
 			fileData = util_hexStringToBytes(hexStr);
 			util_hex_dump("    ", strlen(hexStr)/2, fileData);
 
 			rt = SIM_ACCESS_SUCCESS;
 			file_meta->files.result = rt;
 
-			switch (file_meta->file_id) 
+			switch (file_meta->file_id)
 			{
 					case SIM_EF_IMSI:
 						dr = tcore_sim_decode_imsi(&imsi, (unsigned char *)fileData, strlen(fileData));
@@ -1520,7 +1517,7 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 						break;
 
 					case SIM_EF_CPHS_OPERATOR_NAME_STRING:
-						dr = tcore_sim_decode_ons(&file_meta->files.data.cphs_f_name, (unsigned char *)fileData, strlen(fileData));
+						dr = tcore_sim_decode_ons((unsigned char*)&file_meta->files.data.cphs_net.full_name, (unsigned char *)fileData, strlen(fileData));
 						break;
 
 					case SIM_EF_CPHS_DYNAMICFLAGS:
@@ -1528,7 +1525,7 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 						break;
 
 					case SIM_EF_CPHS_DYNAMIC2FLAG:
-/*					dr = tcore_sim_decode_dynamic2_flag(&po->p_cphs->d2flagsinfo, fileData, 	strlen(fileData));*/
+/*					dr = tcore_sim_decode_dynamic2_flag(&po->p_cphs->d2flagsinfo, fileData,	strlen(fileData));*/
 						break;
 
 					case SIM_EF_CPHS_CPHS_INFO:
@@ -1536,7 +1533,7 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 						break;
 
 					case SIM_EF_CPHS_OPERATOR_NAME_SHORT_FORM_STRING:
-						dr = tcore_sim_decode_short_ons(&file_meta->files.data.cphs_s_name, (unsigned char *)fileData,	strlen(fileData));
+						dr = tcore_sim_decode_short_ons((unsigned char*)&file_meta->files.data.cphs_net.short_name, (unsigned char *)fileData,	strlen(fileData));
 						break;
 
 					case SIM_EF_CPHS_INFORMATION_NUMBERS:
@@ -1550,7 +1547,7 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 				}
 
 			free(fileData);
-		} 
+		}
 		else
 		{
 			rt =  _decode_status_word(sw1, sw2);
@@ -1563,10 +1560,10 @@ static void _response_get_file_data(TcorePending *p, int data_len, const void *d
 	{
 		ReleaseResponse();
 		rt = SIM_ACCESS_FAILED;;
-		file_meta->files.result = rt;	
+		file_meta->files.result = rt;
 	}
 
-	ur = tcore_user_request_dup(ur);
+	ur = tcore_user_request_ref(ur);
 	_next_from_get_file_data(tcore_pending_ref_core_object(p), ur, rt, dr);
 }
 
@@ -1585,7 +1582,7 @@ static gboolean _get_sim_type(CoreObject *o)
 		return FALSE;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = SINGLELINE;
@@ -1593,20 +1590,20 @@ static gboolean _get_sim_type(CoreObject *o)
 	info_len = sizeof(struct ATReqMetaInfo);
 
 	ur = tcore_user_request_new(NULL, NULL);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup("AT%SCCT\r");
-		
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
 	tcore_pending_set_response_callback(pending, _response_get_sim_type, NULL);
 	tcore_pending_link_user_request(pending, ur);
-	
+
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
-	
+
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
@@ -1630,7 +1627,7 @@ static TReturn _get_file_info(CoreObject *o, UserRequest *ur, const enum tel_sim
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	file_meta.file_id = ef;
 	file_meta.metainfo.type = SINGLELINE;
@@ -1638,10 +1635,10 @@ static TReturn _get_file_info(CoreObject *o, UserRequest *ur, const enum tel_sim
 	info_len = sizeof(struct s_sim_property);
 
 	tcore_user_request_set_command(ur, TREQ_CUSTOM);
-	
+
 	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &file_meta);
 	dbg("trt[%d]",trt);
-	
+
 	// AT+CRSM=<command>,<fildid>,<p1>,<p2+C29,<p3>
 	cmd_str = g_strdup_printf("AT+CRSM=192, %d%s", ef, "\r");
 
@@ -1680,9 +1677,9 @@ static gboolean _get_file_data(CoreObject *o, UserRequest *ur, const enum tel_si
 	dbg("new pending(IPC_SEC_RSIM_ACCESS GET - READ BIN)");
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
-// offset for reading the TRANSPARENT data 
+// offset for reading the TRANSPARENT data
 	p1 = (unsigned char)(offset & 0xFF00) >> 8;
 	p2 = (unsigned char)offset & 0x00FF; //offset low
 	p3 = (unsigned char)length;
@@ -1695,7 +1692,7 @@ static gboolean _get_file_data(CoreObject *o, UserRequest *ur, const enum tel_si
 
 	// AT+CRSM=<command>,<fildid>,<p1>,<p2+C29,<p3>
 	cmd_str = g_strdup_printf("AT+CRSM=176, %d%s", ef, "\r");
-		
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -1704,7 +1701,7 @@ static gboolean _get_file_data(CoreObject *o, UserRequest *ur, const enum tel_si
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
 
-	tcore_hal_send_request(h, pending);	
+	tcore_hal_send_request(h, pending);
 	free(cmd_str);
 	return TRUE;
 }
@@ -1716,7 +1713,7 @@ static gboolean _get_file_record(CoreObject *o, UserRequest *ur, const enum tel_
 	return TRUE;
 }
 
-static void on_event_pin_status(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_pin_status(CoreObject *o, const void *event_info, void *user_data)
 {
 	UserRequest *ur;
 	char *line = (char *) event_info;
@@ -1861,7 +1858,7 @@ static void on_event_pin_status(CoreObject *o, const void *event_info, void *use
 
 		case SEC_PB_INIT_COMPLETED:
 			dbg("[SIM DATA] MODEM SIM PB INIT COMPLETED. not handled here! s_phonebook should handle!");
-			return;
+			return TRUE;
 			break;
 
 		default:
@@ -1908,6 +1905,7 @@ static void on_event_pin_status(CoreObject *o, const void *event_info, void *use
 			break;
 	}
 
+	return TRUE;
 }
 
 static void on_response_verify_pins(TcorePending *p, int data_len, const void *data, void *user_data)
@@ -1919,7 +1917,7 @@ static void on_response_verify_pins(TcorePending *p, int data_len, const void *d
 
 	char* line=NULL;
 	int ret;
-	int error;	
+	int error;
 
 	co_sim = tcore_pending_ref_core_object(p);
 	sp = tcore_sim_ref_userdata(co_sim);
@@ -1933,35 +1931,35 @@ static void on_response_verify_pins(TcorePending *p, int data_len, const void *d
 	if(sp_response->success > 0)
 	{
 		ReleaseResponse();
-		
+
 		resp.result = SIM_PIN_OPERATION_SUCCESS;
 		resp.pin_type = _sim_get_current_pin_facility(sp);
-		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);	
+		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);
 	}
 	else
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,&error);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
+			AT_TOK_ERROR(line);
 
 		ReleaseResponse();
 
 		// ur = user_request_dup(ur);
 		// _get_retry_count(co_sim, ur);
-		
+
 		resp.result = SIM_INCORRECT_PASSWORD;
 		resp.pin_type = _sim_get_current_pin_facility(sp);
 		resp.retry_count = 3;
-		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);	
-		
-	}	
+		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);
+
+	}
 }
 
 static void on_response_verify_puks(TcorePending *p, int data_len, const void *data, void *user_data)
@@ -1973,7 +1971,7 @@ static void on_response_verify_puks(TcorePending *p, int data_len, const void *d
 
 	char* line=NULL;
 	int ret;
-	int error;	
+	int error;
 
 	co_sim = tcore_pending_ref_core_object(p);
 	sp = tcore_sim_ref_userdata(co_sim);
@@ -1987,34 +1985,34 @@ static void on_response_verify_puks(TcorePending *p, int data_len, const void *d
 	if(sp_response->success > 0)
 	{
 		ReleaseResponse();
-		
+
 		resp.result = SIM_PIN_OPERATION_SUCCESS;
 		resp.pin_type = _sim_get_current_pin_facility(sp);
-		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);	
+		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);
 	}
 	else
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,&error);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
+			AT_TOK_ERROR(line);
 
 		ReleaseResponse();
 
 		// ur = user_request_dup(ur);
 		// _get_retry_count(co_sim, ur);
-		
+
 		resp.result = SIM_INCORRECT_PASSWORD;
 		resp.pin_type = _sim_get_current_pin_facility(sp);
-		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PUKS,	sizeof(struct tresp_sim_verify_puks), &resp);	
-		
-	}	
+		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PUKS,	sizeof(struct tresp_sim_verify_puks), &resp);
+
+	}
 }
 
 static void on_response_change_pins(TcorePending *p, int data_len, const void *data, void *user_data)
@@ -2026,7 +2024,7 @@ static void on_response_change_pins(TcorePending *p, int data_len, const void *d
 
 	char* line=NULL;
 	int ret;
-	int error;	
+	int error;
 
 	co_sim = tcore_pending_ref_core_object(p);
 	sp = tcore_sim_ref_userdata(co_sim);
@@ -2040,32 +2038,32 @@ static void on_response_change_pins(TcorePending *p, int data_len, const void *d
 	if(sp_response->success > 0)
 	{
 		ReleaseResponse();
-		
+
 		resp.result = SIM_PIN_OPERATION_SUCCESS;
 		resp.pin_type = _sim_get_current_pin_facility(sp);
-		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);	
+		tcore_user_request_send_response(ur, TRESP_SIM_VERIFY_PINS,	sizeof(struct tresp_sim_verify_pins), &resp);
 	}
 	else
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,&error);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
+			AT_TOK_ERROR(line);
 
 		ReleaseResponse();
 
 		// ur = user_request_dup(ur);
 		// _get_retry_count(co_sim, ur);
-		
+
 		resp.result = SIM_INCORRECT_PASSWORD;
 		resp.pin_type = _sim_get_current_pin_facility(sp);
-		tcore_user_request_send_response(ur, TRESP_SIM_CHANGE_PINS,	sizeof(struct tresp_sim_change_pins), &resp);	
+		tcore_user_request_send_response(ur, TRESP_SIM_CHANGE_PINS,	sizeof(struct tresp_sim_change_pins), &resp);
 	}
 }
 
@@ -2091,14 +2089,14 @@ static void on_response_get_facility_status(TcorePending *p, int data_len, const
 	if(sp_response->success > 0)
 	{
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,(int *)&resp.b_enable);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
+			AT_TOK_ERROR(line);
 	}
 	else
 	{
@@ -2109,7 +2107,7 @@ static void on_response_get_facility_status(TcorePending *p, int data_len, const
 
 	if (ur) {
 		tcore_user_request_send_response(ur, TRESP_SIM_GET_FACILITY_STATUS,
-				sizeof(struct tresp_sim_get_facility_status), &resp);	
+				sizeof(struct tresp_sim_get_facility_status), &resp);
 	}
 }
 
@@ -2137,14 +2135,14 @@ static void on_response_enable_facility(TcorePending *p, int data_len, const voi
 	if(sp_response->success > 0)
 	{
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,(int *)&resp.result);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
+			AT_TOK_ERROR(line);
 	}
 	else
 	{
@@ -2183,14 +2181,14 @@ static void on_response_disable_facility(TcorePending *p, int data_len, const vo
 	if(sp_response->success > 0)
 	{
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line,(int *)&resp.result);
 		if (ret < 0)
-			AT_TOK_ERROR(line);	
+			AT_TOK_ERROR(line);
 	}
 	else
 	{
@@ -2222,7 +2220,7 @@ static TReturn s_verify_pins(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	req_data = tcore_user_request_ref_data(ur, NULL);
 	sp = tcore_sim_ref_userdata(o);
 
@@ -2246,13 +2244,13 @@ static TReturn s_verify_pins(CoreObject *o, UserRequest *ur)
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup_printf("AT+CPIN=\"%s\"%s", req_data->pin, "\r");
 	dbg("new pending(verify - pins), %s", cmd_str);
-	
+
 	pending = tcore_pending_new(o,ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -2265,7 +2263,7 @@ static TReturn s_verify_pins(CoreObject *o, UserRequest *ur)
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
-	
+
 	return TCORE_RETURN_SUCCESS;
 }
 
@@ -2286,7 +2284,7 @@ static TReturn s_verify_puks(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	req_data = tcore_user_request_ref_data(ur, NULL);
 	sp = tcore_sim_ref_userdata(o);
 
@@ -2305,12 +2303,12 @@ static TReturn s_verify_puks(CoreObject *o, UserRequest *ur)
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup_printf("AT+CPIN=\"%s\", \"%s\"%s", req_data->puk, req_data->pin, "\r");
-	
+
 	dbg("new pending(IPC_SEC_PIN_STATUS SET - verify puks)");
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
@@ -2320,11 +2318,11 @@ static TReturn s_verify_puks(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
-	
+
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
-	
+
 	return TCORE_RETURN_SUCCESS;
 }
 
@@ -2345,7 +2343,7 @@ static TReturn s_change_pins(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	req_data = tcore_user_request_ref_data(ur, NULL);
 	sp = tcore_sim_ref_userdata(o);
 
@@ -2363,12 +2361,12 @@ static TReturn s_change_pins(CoreObject *o, UserRequest *ur)
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup_printf("AT+CPIN=\"%s\", \"%s\"%s", req_data->old_pin, req_data->new_pin, "\r");
-	
+
 	dbg("new pending(IPC_SEC_CHANGE_LOCKING_PW SET)");
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
@@ -2378,11 +2376,11 @@ static TReturn s_change_pins(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
-	
+
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
-	
+
 	return TCORE_RETURN_SUCCESS;
 }
 
@@ -2406,7 +2404,7 @@ static TReturn s_get_facility_status(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	req_data = tcore_user_request_ref_data(ur, NULL);
 
 	if(req_data->type == SIM_FACILITY_PS)
@@ -2433,7 +2431,7 @@ static TReturn s_get_facility_status(CoreObject *o, UserRequest *ur)
 	tcore_user_request_set_command(ur, TREQ_CUSTOM);
 	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 	dbg("trt[%d]",trt);
-	
+
 	// AT+CLCK=<fac>,<mode>,<password>
 	cmd_str = g_strdup_printf("AT+CLCK=\"%s\", %d%s", fac, mode, "\r");
 
@@ -2446,7 +2444,7 @@ static TReturn s_get_facility_status(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
-	
+
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
@@ -2468,12 +2466,12 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 	char *cmd_str = NULL;
 //	struct ATReqMetaInfo metainfo;
 	int info_len =0;
-	
+
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	req_data = tcore_user_request_ref_data(ur, NULL);
 	sp = tcore_sim_ref_userdata(o);
 
@@ -2495,7 +2493,7 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 
 	sp->current_sec_op = SEC_SIM_ENABLE;
-	
+
 	sec_meta.current_sec_op = req_data->type;
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
@@ -2506,7 +2504,7 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 	// AT+CLCK=<fac>,<mode>,<password>
 	cmd_str = g_strdup_printf("AT+CLCK=\"%s\", %d, %s%s", fac, mode, req_data->password,"\r");
 	dbg("new pending(enable_facility), %s", cmd_str);
-	
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -2515,7 +2513,7 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
-	
+
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
@@ -2535,14 +2533,14 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 	int mode = 0;		// 2:query, 0: unlock, 1:lock
 
 	char *cmd_str = NULL;
-//	struct ATReqMetaInfo metainfo;
+	//	struct ATReqMetaInfo metainfo;
 	int info_len =0;
-	
+
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	req_data = tcore_user_request_ref_data(ur, NULL);
 	sp = tcore_sim_ref_userdata(o);
 
@@ -2564,7 +2562,7 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 
 	sp->current_sec_op = SEC_SIM_ENABLE;
-	
+
 	sec_meta.current_sec_op = req_data->type;
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
@@ -2575,7 +2573,7 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 	// AT+CLCK=<fac>,<mode>,<password>
 	cmd_str = g_strdup_printf("AT+CLCK=\"%s\", %d, %s%s", fac, mode, req_data->password,"\r");
 	dbg("new pending(enable_facility), %s", cmd_str);
-	
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -2584,7 +2582,7 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sim_message_send, NULL);
-	
+
 	tcore_hal_send_request(h, pending);
 
 	free(cmd_str);
@@ -2667,18 +2665,8 @@ static TReturn s_read_file(CoreObject *o, UserRequest *ur)
 			api_ret = _get_file_info(o, ur, SIM_EF_PNN);
 			break;
 
-		case TREQ_SIM_GET_CPHS_SHORTNETNAME:
-			if(tcore_sim_get_cphs_status(o))
-				api_ret = _get_file_info(o, ur, SIM_EF_CPHS_OPERATOR_NAME_SHORT_FORM_STRING);
-			else
-				api_ret = TCORE_RETURN_ENOSYS;
-			break;
-
-		case TREQ_SIM_GET_CPHS_FULLNETNAME:
-			if(tcore_sim_get_cphs_status(o))
-				api_ret = _get_file_info(o, ur, SIM_EF_CPHS_OPERATOR_NAME_STRING);
-			else
-				api_ret = TCORE_RETURN_ENOSYS;
+		case TREQ_SIM_GET_CPHS_NETNAME:
+			api_ret = TCORE_RETURN_ENOSYS;
 			break;
 
 		case TREQ_SIM_GET_OPLMNWACT:
@@ -2733,12 +2721,12 @@ static struct tcore_sim_operations sim_ops =
 		.req_authentication = s_req_authentication
 };
 
-gboolean s_sim_init(TcorePlugin *p)
+gboolean s_sim_init(TcorePlugin *p, TcoreHal *h)
 {
 	CoreObject *o;
 	struct s_sim_property *sp = NULL;
 
-	o = tcore_sim_new(p, "sim", &sim_ops);
+	o = tcore_sim_new(p, "sim", &sim_ops, h);
 	if (!o)
 		return FALSE;
 

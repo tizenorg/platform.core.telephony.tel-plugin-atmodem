@@ -65,35 +65,35 @@ struct ss_confirm_info {
 	int  data_len;
 };
 
- #define TIZEN_NUM_TYPE_INTERNATIONAL  0x01  
- #define TIZEN_NUM_PLAN_ISDN  0x01            
+#define TIZEN_NUM_TYPE_INTERNATIONAL  0x01
+#define TIZEN_NUM_PLAN_ISDN  0x01
 
 
-static gboolean	_ss_request_message( CoreObject *o, 
+static gboolean	_ss_request_message( CoreObject *o,
 									 UserRequest *ur,
-									 char *cmd, 
-									 unsigned int cmd_len, 
-									 void* on_resp, 
+									 char *cmd,
+									 unsigned int cmd_len,
+									 void* on_resp,
 									 void* user_data );
 #if 0
 static TReturn	_ss_general_response_result(const int result);
 #endif
 
-static TReturn _ss_barring_get( CoreObject *o, 
-								UserRequest *ur, 
-								enum telephony_ss_class class, 
-								enum telephony_ss_barring_mode type, 
+static TReturn _ss_barring_get( CoreObject *o,
+								UserRequest *ur,
+								enum telephony_ss_class class,
+								enum telephony_ss_barring_mode type,
 								enum tcore_response_command resp );
 
-static TReturn _ss_forwarding_get(	CoreObject *o, 
-									UserRequest *ur, 
-									enum telephony_ss_class class, 
-									enum telephony_ss_forwarding_mode type, 
+static TReturn _ss_forwarding_get(	CoreObject *o,
+									UserRequest *ur,
+									enum telephony_ss_class class,
+									enum telephony_ss_forwarding_mode type,
 									enum tcore_response_command resp );
 
-static TReturn _ss_waiting_get( CoreObject *o, 
-								UserRequest *ur, 
-								enum telephony_ss_class class, 
+static TReturn _ss_waiting_get( CoreObject *o,
+								UserRequest *ur,
+								enum telephony_ss_class class,
 								enum tcore_response_command resp );
 
 
@@ -139,18 +139,18 @@ static void on_confirmation_call_control_ss_message_send( TcorePending *p, gbool
 static void		on_confirmation_ss_message_send( TcorePending *p, gboolean result, void *user_data );
 
 
-static void		on_notification_ss_info( CoreObject *o, const void *data, void *user_data );
+static gboolean on_notification_ss_info( CoreObject *o, const void *data, void *user_data );
 
 static void		_ss_ussd_response( UserRequest *ur, const char* ussd_str, enum telephony_ss_ussd_type type, enum telephony_ss_ussd_status status );
 static void		_ss_ussd_notification( TcorePlugin *p, const char* ussd_str, enum telephony_ss_ussd_status status );
-static void		on_notification_ss_ussd( CoreObject *o, const void *data, void *user_data );
+static gboolean on_notification_ss_ussd( CoreObject *o, const void *data, void *user_data );
 
 
-static gboolean _ss_request_message( CoreObject *o, 
+static gboolean _ss_request_message( CoreObject *o,
 									 UserRequest *ur,
-									 char *cmd, 
-									 unsigned int cmd_len, 
-									 void* on_resp, 
+									 char *cmd,
+									 unsigned int cmd_len,
+									 void* on_resp,
 									 void* user_data )
 {
 	TcorePending *pending = 0;
@@ -158,7 +158,7 @@ static gboolean _ss_request_message( CoreObject *o,
 	TcoreHal *h = 0;
 	UserRequest *ur2 = 0;
 
-	ur2 = tcore_user_request_dup( ur );
+	ur2 = tcore_user_request_ref( ur );
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, cmd_len, cmd);
@@ -176,7 +176,7 @@ static gboolean _ss_request_message( CoreObject *o,
 	}
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 	tcore_hal_send_request(h, pending);
 
 	return TRUE;
@@ -193,7 +193,7 @@ static TReturn _ss_general_response_result(const int ret)
 }
 #endif
 
-static void _ss_ussd_response( UserRequest *ur, const char* ussd_str, enum telephony_ss_ussd_type type, enum telephony_ss_ussd_status status ) 
+static void _ss_ussd_response( UserRequest *ur, const char* ussd_str, enum telephony_ss_ussd_type type, enum telephony_ss_ussd_status status )
 {
 	struct tresp_ss_ussd resp;
 
@@ -207,7 +207,7 @@ static void _ss_ussd_response( UserRequest *ur, const char* ussd_str, enum telep
 	resp.err = FALSE;
 
 	if ( ussd_str ) {
-	
+
 		int len = strlen( ussd_str );
 
 		if ( len < MAX_SS_USSD_LEN ) {
@@ -269,7 +269,7 @@ static void _ss_ussd_notification( TcorePlugin *p, const char* ussd_str, enum te
 
 }
 
-static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user_data )
+static gboolean on_notification_ss_ussd( CoreObject *o, const void *data, void *user_data )
 {
 	enum telephony_ss_ussd_status status;
 	UssdSession *ussd_session = 0;
@@ -291,47 +291,46 @@ static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user
 	switch(m){
 		case 0:
 			status = SS_USSD_NO_ACTION_REQUIRE;
-		break;
+			break;
 
 		case 1:
 			status = SS_USSD_ACTION_REQUIRE;
-		break;
+			break;
 
 		case 2:
 			status = SS_USSD_TERMINATED_BY_NET;
-		break;		
+			break;
 
 		case 3:
 			status = SS_USSD_OTHER_CLIENT;
-		break;	
+			break;
 
 		case 4:
 			status = SS_USSD_NOT_SUPPORT;
-		break;
+			break;
 
 		case 5:
 			status = SS_USSD_TIME_OUT;
-		break;
+			break;
 
 		default:
 			dbg("unsupported m : %d", m);
 			status = SS_USSD_MAX;
-		break;
+			break;
 	}
 
 	if(at_tok_hasmore(&cmd))
 	{
-		err = at_tok_nextstr(&cmd, &tmp_str);		
+		err = at_tok_nextstr(&cmd, &tmp_str);
 		err = at_tok_nextint(&cmd, &dcs);
 
 		dbg("ussdstr: %s, dcs :%d", tmp_str, dcs);
-
 	}
 
 	switch ( tcore_util_get_cbs_coding_scheme(dcs) ) {
 		case TCORE_DCS_TYPE_7_BIT:
 		case TCORE_DCS_TYPE_UNSPECIFIED: {
-			ussd_str = tcore_util_unpack_gsm7bit(tmp_str, strlen(tmp_str));
+			ussd_str = (char *)tcore_util_unpack_gsm7bit((const unsigned char *)tmp_str, strlen(tmp_str));
 		} break;
 
 		case TCORE_DCS_TYPE_UCS2:
@@ -341,7 +340,7 @@ static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user
 				memcpy( ussd_str,tmp_str, strlen(tmp_str) );
 				ussd_str[ strlen(tmp_str) ] = '\0';
 			}
-		} break;					   
+		} break;
 		default: {
 			dbg("[ error ] unknown dcs type. ussd_session : %x", ussd_session);
 			if ( ussd_session ) {
@@ -352,19 +351,19 @@ static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user
 				tcore_ss_ussd_get_session_data( ussd_session, (void**)&ur );
 				if ( !ur ) {
 					dbg("[ error ] ur : (0)");
-					return;
+					return TRUE;
 				}
 
 				type = (enum telephony_ss_ussd_type)tcore_ss_ussd_get_session_type( ussd_session );
 
 				_ss_ussd_response( ur, ussd_str, type, status );
-			} 
-			return;
+			}
+			return TRUE;
 		}
 	}
 
 	switch ( status ) {
-	case SS_USSD_NO_ACTION_REQUIRE: 
+	case SS_USSD_NO_ACTION_REQUIRE:
 	case SS_USSD_ACTION_REQUIRE:
 	case SS_USSD_OTHER_CLIENT:
 	case SS_USSD_NOT_SUPPORT:
@@ -380,7 +379,7 @@ static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user
 			tcore_ss_ussd_get_session_data( ussd_session, (void**)&ur );
 			if ( !ur ) {
 				dbg("[ error ] ur : (0)");
-				return;
+				return TRUE;
 			}
 
 			type = (enum telephony_ss_ussd_type)tcore_ss_ussd_get_session_type( ussd_session );
@@ -398,7 +397,7 @@ static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user
 			g_free( ussd_str );
 		}
 
-	} break;										
+	} break;
 	case SS_USSD_TERMINATED_BY_NET: {
 
 		if ( ussd_session ) {
@@ -407,19 +406,20 @@ static void	on_notification_ss_ussd( CoreObject *o, const void *data, void *user
 			tcore_ss_ussd_get_session_data( ussd_session, (void**)&ur );
 
 			if ( ur )
-				tcore_user_request_free( ur );
+				tcore_user_request_unref( ur );
 
 			tcore_ss_ussd_destroy_session( ussd_session );
 		}
 
-	} break;										
+	} break;
 	default:
 	break;
 	}
 
+	return TRUE;
 }
 
-static void	on_notification_ss_info( CoreObject *o, const void *data, void *user_data )
+static gboolean on_notification_ss_info( CoreObject *o, const void *data, void *user_data )
 {
 	TcorePlugin *p  = 0;
 	CoreObject *co = 0;
@@ -431,7 +431,7 @@ static void	on_notification_ss_info( CoreObject *o, const void *data, void *user
 	co	= tcore_plugin_ref_core_object( p, "call" );
 	if (!co) {
 		dbg("[ error ] plugin_ref_core_object : call");
-		return ;
+		return TRUE;
 	}
 
 	cmd = (char*)data;
@@ -444,51 +444,53 @@ static void	on_notification_ss_info( CoreObject *o, const void *data, void *user
 		err = at_tok_nextint(&cmd, &index); //cug index - skip
 	if(at_tok_hasmore(&cmd)){
 		err = at_tok_nextstr(&cmd, &number);
-		dbg("number : %s",number);	
+		dbg("number : %s",number);
 		err = at_tok_nextint(&cmd, &ton);
 	}
 
 	switch(code2){
 		case 0:  //this is a forwarded call (MT call setup)
 			tcore_call_information_mt_forwarded_call( co, number );
-		break;
+			break;
 
 		case 2: //call has been put on hold (during a voice call)
 			tcore_call_information_held( co, number );
-		break;
+			break;
 
 		case 3: //call has been retrieved (during a voice call)
 			tcore_call_information_active( co, number );
-		break;
+			break;
 
 		case 4: //multiparty call entered (during a voice call)
 			tcore_call_information_joined( co, number );
-		break;
+			break;
 
 		case 5: //call on hold has been released
 			tcore_call_information_released_on_hold( co, number );
-		break;
+			break;
 
 		case 6: //forward check SS message received (can be received whenever)
 			tcore_call_information_cf_check_ss_message( co, number );
-		break;		
+			break;
 
-		case 7: //call is being connected (alerting) with the remote party in alerting state in explicit call transfer operation (during a voice call) 
+		case 7: //call is being connected (alerting) with the remote party in alerting state in explicit call transfer operation (during a voice call)
 			tcore_call_information_transfer_alert( co, number );
-		break;	
+			break;
 
 		case 8: //call has been connected with the other remote party in explicit call transfer operation (also number and subaddress parameters may be present) (during a voice call or MT call setup)
 			tcore_call_information_transfered( co, number );
-		break;			
+			break;
 
 		case 9: //this is a deflected call (MT call setup):
 			tcore_call_information_mt_deflected_call( co, number );
-		break;		
+			break;
 
 		default:
-			dbg("unsupported cmd2 : %d",code2);	
-		break;
+			dbg("unsupported cmd2 : %d",code2);
+			break;
 	}
+
+	return TRUE;
 }
 
 static void on_confirmation_ss_message_send( TcorePending *p, gboolean result, void *user_data )
@@ -509,9 +511,9 @@ static void on_confirmation_ss_message_send( TcorePending *p, gboolean result, v
 	if((metainfo->type == SINGLELINE)||
 		(metainfo->type == MULTILINE))
 	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);	
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else
 	{
@@ -521,7 +523,7 @@ static void on_confirmation_ss_message_send( TcorePending *p, gboolean result, v
 //set atcmd type into s_type
 	s_type = metainfo->type;
 }
-	
+
 static void on_confirmation_call_control_ss_message_send( TcorePending *p, gboolean result, void *user_data )
 {
 	UserRequest* ur = NULL;
@@ -538,35 +540,35 @@ static void on_confirmation_call_control_ss_message_send( TcorePending *p, gbool
 	metainfo = (struct ATReqMetaInfo*)tcore_user_request_ref_metainfo(ur,&info_len);
 
 	if((metainfo->type == SINGLELINE)||
-		(metainfo->type == MULTILINE))
+			(metainfo->type == MULTILINE))
 	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);	
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else
 	{
 		s_responsePrefix = NULL;
 	}
 
-//set atcmd type into s_type
+	//set atcmd type into s_type
 	s_type = metainfo->type;
 }
 
-static void on_response_ss_barring_set( TcorePending *p, int data_len, const void *data, void *user_data ) 
+static void on_response_ss_barring_set( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	struct ss_confirm_info *info = 0;
 	enum telephony_ss_class class;
-	
+
 	CoreObject* o = 0;
 	UserRequest *ur;
 	struct tresp_ss_general resp;
 	UserRequest *ur_dup=0;
-	
+
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	printResponse();	
+	printResponse();
 
 	info = (struct ss_confirm_info*)user_data;
 	class = info->class;
@@ -586,12 +588,12 @@ static void on_response_ss_barring_set( TcorePending *p, int data_len, const voi
 	{
 		ReleaseResponse();
 
-		if ( info->class == SS_CLASS_VOICE ) 
+		if ( info->class == SS_CLASS_VOICE )
 			class = SS_CLASS_ALL_TELE_BEARER;
 
-		ur_dup = tcore_user_request_dup(ur);
+		ur_dup = tcore_user_request_ref(ur);
 
-		if ( info->flavor_type == SS_BARR_MODE_AB || 
+		if ( info->flavor_type == SS_BARR_MODE_AB ||
 			 info->flavor_type == SS_BARR_MODE_AOB )
 			_ss_barring_get( o, ur_dup, class, SS_BARR_MODE_BAOC, info->resp );
 		else if ( info->flavor_type == SS_BARR_MODE_AIB )
@@ -606,7 +608,7 @@ static void on_response_ss_barring_set( TcorePending *p, int data_len, const voi
 
 		if ( ur )
 			tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_general), &resp);
-		else 
+		else
 			dbg("[ error ] ur is 0");
 
 	}
@@ -615,14 +617,15 @@ static void on_response_ss_barring_set( TcorePending *p, int data_len, const voi
 
 
 }
-static void on_response_ss_barring_change_pwd( TcorePending *p, int data_len, const void *data, void *user_data ) 
+
+static void on_response_ss_barring_change_pwd( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	struct ss_confirm_info *info = 0;
 	UserRequest *ur;
 	struct tresp_ss_general resp;
 
 	ur = tcore_pending_ref_user_request(p);
-	
+
 	info = (struct ss_confirm_info*)user_data;
 
 	printResponse();
@@ -640,21 +643,20 @@ static void on_response_ss_barring_change_pwd( TcorePending *p, int data_len, co
 
 	if ( ur )
 		tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_general), &resp);
-	else 
+	else
 		dbg("[ error ] ur is 0");
 
 	g_free(user_data);
-
 }
 
 
-static void on_response_ss_barring_get( TcorePending *p, int data_len, const void *data, void *user_data ) 
+static void on_response_ss_barring_get( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0;
-    	struct ATLine *p_cur;
+	struct ATLine *p_cur;
 	int status=0, classx =0, err=0;
-		
+
 	struct ss_confirm_info* info = 0;
 	struct tresp_ss_barring resp;
 	int countRecords=0, countValidRecords =0;
@@ -662,18 +664,18 @@ static void on_response_ss_barring_get( TcorePending *p, int data_len, const voi
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	printResponse();	
+	printResponse();
 
 	info = (struct ss_confirm_info*)user_data;
 
 	/* count the calls */
 	for (countRecords = 0, p_cur = sp_response->p_intermediates
-	        ; p_cur != NULL
-	        ; p_cur = p_cur->p_next
-	) {
-	    countRecords++;
+			; p_cur != NULL
+			; p_cur = p_cur->p_next
+		) {
+		countRecords++;
 	}
-	dbg("total records : %d",countRecords);	
+	dbg("total records : %d",countRecords);
 
 
 	resp.record_num = countRecords;
@@ -684,20 +686,20 @@ static void on_response_ss_barring_get( TcorePending *p, int data_len, const voi
 		resp.record = g_new0( struct barring_info, resp.record_num );
 
 		for (countValidRecords = 0, p_cur = sp_response->p_intermediates
-            		; p_cur != NULL
-            		; p_cur = p_cur->p_next)
+				; p_cur != NULL
+				; p_cur = p_cur->p_next)
 		{
 			err = at_tok_start(&(p_cur->line));
 			if (err < 0){
-				dbg("start line error. skip this line");				
-				goto error;		
+				dbg("start line error. skip this line");
+				goto error;
 			}
 			err = at_tok_nextint(&(p_cur->line), &status);// status
 			if (err < 0) {
-				dbg("status error. skip this line");				
-				goto error;		
-			}			
-	
+				dbg("status error. skip this line");
+				goto error;
+			}
+
 			if(status == 1){
 				resp.record[countValidRecords].status = SS_STATUS_ACTIVATE;
 			}
@@ -709,58 +711,58 @@ static void on_response_ss_barring_get( TcorePending *p, int data_len, const voi
 			if (err < 0) {
 				dbg("class error. classx not exist - set to requested one : %d", info->class);
 				switch(info->class){
-				case SS_CLASS_ALL_TELE:
-					classx =7;
-				break;
-				case SS_CLASS_VOICE:
-					classx =1;
-				break;
-				case SS_CLASS_ALL_DATA_TELE:
-					classx =2;
-				break;
-				case SS_CLASS_FAX:
-					classx =4;
-				break;
-				case SS_CLASS_SMS:
-					classx = 8;
-				break;
-				case SS_CLASS_ALL_CS_SYNC:
-					classx = 16;
-				break;
+					case SS_CLASS_ALL_TELE:
+						classx =7;
+						break;
+					case SS_CLASS_VOICE:
+						classx =1;
+						break;
+					case SS_CLASS_ALL_DATA_TELE:
+						classx =2;
+						break;
+					case SS_CLASS_FAX:
+						classx =4;
+						break;
+					case SS_CLASS_SMS:
+						classx = 8;
+						break;
+					case SS_CLASS_ALL_CS_SYNC:
+						classx = 16;
+						break;
 
-				default:
-					classx =7;
-					dbg("unsupported class %d. set to default : 7", info->class);
-				break;
+					default:
+						classx =7;
+						dbg("unsupported class %d. set to default : 7", info->class);
+						break;
 				}
-			}	
+			}
 
 			switch(classx){
 				case 1:
 					resp.record[countValidRecords].class = SS_CLASS_VOICE;
-				break;
+					break;
 				case 2:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_DATA_TELE;
-				break;		
+					break;
 				case 4:
 					resp.record[countValidRecords].class = SS_CLASS_FAX;
-				break;					
+					break;
 				case 7:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_TELE;
-				break;
+					break;
 				case 8:
 					resp.record[countValidRecords].class = SS_CLASS_SMS;
-				break;					
+					break;
 				case 16:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_CS_SYNC;
-				break;					
+					break;
 				case 32:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_CS_ASYNC;
-				break;	
+					break;
 				default:
-					dbg("unspoorted class : [%d]\n", classx );	
+					dbg("unspoorted class : [%d]\n", classx );
 					goto error;
-				break;
+					break;
 			}
 
 			resp.record[countValidRecords].mode = (enum telephony_ss_barring_mode)(info->flavor_type);
@@ -775,27 +777,34 @@ error:
 		dbg("valid count :%d",countValidRecords);
 		resp.record_num = countValidRecords;
 		resp.err = TCORE_RETURN_SUCCESS;
-		
+
 	}
 	else
 	{
 		dbg("no active status - return to user")
+	}
+
+	if(sp_response->success > 0){
+		resp.err = TCORE_RETURN_SUCCESS;
+	}
+	else{
 		resp.err = TCORE_RETURN_FAILURE;
 	}
+
 	dbg("on_response_ss_barring_get- rsp.err : %d, ur : %x", resp.err, ur);
 
 	ReleaseResponse();
 
 	if ( ur )
 		tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_barring), &resp);
-	else 
+	else
 		dbg("[ error ] ur is 0");
 
 	g_free( user_data );
-	
+
 }
 
-static void on_response_ss_forwarding_set( TcorePending *p, int data_len, const void *data, void *user_data ) 
+static void on_response_ss_forwarding_set( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0, *dup_ur=0;
@@ -803,7 +812,7 @@ static void on_response_ss_forwarding_set( TcorePending *p, int data_len, const 
 	struct tresp_ss_general resp;
 
 	o  = tcore_pending_ref_core_object(p);
-	ur = tcore_pending_ref_user_request(p);	
+	ur = tcore_pending_ref_user_request(p);
 
 	info = (struct ss_confirm_info*)user_data;
 
@@ -824,16 +833,16 @@ static void on_response_ss_forwarding_set( TcorePending *p, int data_len, const 
 
 	ReleaseResponse();
 
-		if ( info->flavor_type == SS_CF_MODE_CF_ALL || 
+		if ( info->flavor_type == SS_CF_MODE_CF_ALL ||
 			 info->flavor_type == SS_CF_MODE_CFC ) {
 
 			if ( ur )
 				tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_general), &resp);
-			else 
+			else
 				dbg("[ error ] ur is 0");
 
 		} else {
-			dup_ur = tcore_user_request_dup(ur);
+			dup_ur = tcore_user_request_ref(ur);
 			_ss_forwarding_get( o, dup_ur, info->class, info->flavor_type, info->resp );
 		}
 
@@ -842,21 +851,21 @@ static void on_response_ss_forwarding_set( TcorePending *p, int data_len, const 
 
 		if ( ur )
 			tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_general), &resp);
-		else 
+		else
 			dbg("[ error ] ur is 0");
 
 	}
 	g_free(user_data);
 }
 
-static void on_response_ss_forwarding_get( TcorePending *p, int data_len, const void *data, void *user_data ) 
+static void on_response_ss_forwarding_get( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0;
-    	struct ATLine *p_cur;
+	struct ATLine *p_cur;
 	int status=0, classx =0, err=0, ton =0, time=0;
 	char* num, *subaddr;
-		
+
 	struct ss_confirm_info* info = 0;
 	struct tresp_ss_forwarding resp;
 	int countRecords=0, countValidRecords =0;
@@ -864,42 +873,42 @@ static void on_response_ss_forwarding_get( TcorePending *p, int data_len, const 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	printResponse();	
+	printResponse();
 
 	info = (struct ss_confirm_info*)user_data;
 
 	/* count the calls */
 	for (countRecords = 0, p_cur = sp_response->p_intermediates
-	        ; p_cur != NULL
-	        ; p_cur = p_cur->p_next
-	) {
-	    countRecords++;
+			; p_cur != NULL
+			; p_cur = p_cur->p_next
+		) {
+		countRecords++;
 	}
-	dbg("total records : %d",countRecords);	
+	dbg("total records : %d",countRecords);
 
 
 	resp.record_num = countRecords;
 
 	if ( resp.record_num > 0 ) {
-//		int i = 0;
+		//		int i = 0;
 
 		resp.record = g_new0( struct forwarding_info, resp.record_num );
 
 		for (countValidRecords = 0, p_cur = sp_response->p_intermediates
-            		; p_cur != NULL
-            		; p_cur = p_cur->p_next)
+				; p_cur != NULL
+				; p_cur = p_cur->p_next)
 		{
 			err = at_tok_start(&(p_cur->line));
 			if (err < 0){
-				dbg("start line error. skip this line");				
-				goto error;		
+				dbg("start line error. skip this line");
+				goto error;
 			}
 			err = at_tok_nextint(&(p_cur->line), &status);// status
 			if (err < 0) {
-				dbg("status error. skip this line");				
-				goto error;		
-			}			
-	
+				dbg("status error. skip this line");
+				goto error;
+			}
+
 			if(status == 1){
 				resp.record[countValidRecords].status = SS_STATUS_ACTIVATE;
 			}
@@ -909,43 +918,43 @@ static void on_response_ss_forwarding_get( TcorePending *p, int data_len, const 
 
 			err = at_tok_nextint(&(p_cur->line), &classx); //class
 			if (err < 0) {
-				dbg("class error. skip this line");				
-				goto error;		
-			}	
+				dbg("class error. skip this line");
+				goto error;
+			}
 
 			switch(classx){
 				case 1:
 					resp.record[countValidRecords].class = SS_CLASS_VOICE;
-				break;
+					break;
 				case 2:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_DATA_TELE;
-				break;		
+					break;
 				case 4:
 					resp.record[countValidRecords].class = SS_CLASS_FAX;
-				break;					
+					break;
 				case 7:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_TELE;
-				break;
+					break;
 				case 8:
 					resp.record[countValidRecords].class = SS_CLASS_SMS;
-				break;					
+					break;
 				case 16:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_CS_SYNC;
-				break;					
+					break;
 				case 32:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_CS_ASYNC;
-				break;	
+					break;
 				default:
-					dbg("unspoorted class : [%d]\n", classx );	
+					dbg("unspoorted class : [%d]\n", classx );
 					goto error;
-				break;
+					break;
 			}
 
-			if(at_tok_hasmore(&(p_cur->line)) ==1){ 	//more data present
+			if(at_tok_hasmore(&(p_cur->line)) ==1){	//more data present
 				err = at_tok_nextstr(&(p_cur->line), &num); //number
 				memcpy((resp.record[countValidRecords].number), num, strlen(num));
 				resp.record[countValidRecords].number_present = TRUE;
-				
+
 				err = at_tok_nextint(&(p_cur->line), &ton); // type of  number - skip
 				resp.record[countValidRecords].number_type = ton;
 
@@ -959,7 +968,7 @@ static void on_response_ss_forwarding_get( TcorePending *p, int data_len, const 
 					}
 
 				}
-			
+
 			}
 
 			resp.record[countValidRecords].mode = (enum telephony_ss_barring_mode)(info->flavor_type);
@@ -979,6 +988,12 @@ error:
 	else
 	{
 		dbg("no active status - return to user")
+	}
+
+	if(sp_response->success > 0){
+		resp.err = TCORE_RETURN_SUCCESS;
+	}
+	else{
 		resp.err = TCORE_RETURN_FAILURE;
 	}
 
@@ -987,14 +1002,14 @@ error:
 
 	if ( ur )
 		tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_forwarding), &resp);
-	else 
+	else
 		dbg("[ error ] ur is 0");
 
 	g_free( user_data );
-	
+
 }
 
-static void on_response_ss_waiting_set( TcorePending *p, int data_len, const void *data, void *user_data ) 
+static void on_response_ss_waiting_set( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0;
@@ -1024,20 +1039,20 @@ static void on_response_ss_waiting_set( TcorePending *p, int data_len, const voi
 
 		if ( ur )
 			tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_general), &resp);
-		else 
+		else
 			dbg("[ error ] ur is 0");
 
 	}
 	g_free( user_data );
 }
 
-static void on_response_ss_waiting_get( TcorePending *p, int data_len, const void *data, void *user_data ) 
+static void on_response_ss_waiting_get( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0;
-    	struct ATLine *p_cur;
+	struct ATLine *p_cur;
 	int status=0, classx =0, err=0;
-		
+
 	struct ss_confirm_info* info = 0;
 	struct tresp_ss_waiting resp;
 	int countRecords=0, countValidRecords =0;
@@ -1045,43 +1060,43 @@ static void on_response_ss_waiting_get( TcorePending *p, int data_len, const voi
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	printResponse();	
+	printResponse();
 
 	info = (struct ss_confirm_info*)user_data;
 
 	/* count the calls */
 	for (countRecords = 0, p_cur = sp_response->p_intermediates
-	        ; p_cur != NULL
-	        ; p_cur = p_cur->p_next
-	) {
-	    countRecords++;
+			; p_cur != NULL
+			; p_cur = p_cur->p_next
+		) {
+		countRecords++;
 	}
-	dbg("total records : %d",countRecords);	
+	dbg("total records : %d",countRecords);
 
 
 	resp.record_num = countRecords;
 
 	if ( resp.record_num > 0 ) {
-//		int i = 0;
+		//		int i = 0;
 
 		resp.record = g_new0( struct waiting_info, resp.record_num );
 
 		for (countValidRecords = 0, p_cur = sp_response->p_intermediates
-            		; p_cur != NULL
-            		; p_cur = p_cur->p_next)
+				; p_cur != NULL
+				; p_cur = p_cur->p_next)
 		{
 			err = at_tok_start(&(p_cur->line));
 			if (err < 0){
-				dbg("start line error. skip this line");				
-				goto error;		
+				dbg("start line error. skip this line");
+				goto error;
 			}
-			
+
 			err = at_tok_nextint(&(p_cur->line), &status);// status
 			if (err < 0) {
-				dbg("status error. skip this line");				
-				goto error;		
-			}			
-	
+				dbg("status error. skip this line");
+				goto error;
+			}
+
 			if(status == 1){
 				resp.record[countValidRecords].status = SS_STATUS_ACTIVATE;
 			}
@@ -1091,36 +1106,36 @@ static void on_response_ss_waiting_get( TcorePending *p, int data_len, const voi
 
 			err = at_tok_nextint(&(p_cur->line), &classx); //class
 			if (err < 0) {
-				dbg("class error. skip this line");				
-				goto error;		
-			}	
+				dbg("class error. skip this line");
+				goto error;
+			}
 
 			switch(classx){
 				case 1:
 					resp.record[countValidRecords].class = SS_CLASS_VOICE;
-				break;
+					break;
 				case 2:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_DATA_TELE;
-				break;		
+					break;
 				case 4:
 					resp.record[countValidRecords].class = SS_CLASS_FAX;
-				break;					
+					break;
 				case 7:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_TELE;
-				break;
+					break;
 				case 8:
 					resp.record[countValidRecords].class = SS_CLASS_SMS;
-				break;					
+					break;
 				case 16:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_CS_SYNC;
-				break;					
+					break;
 				case 32:
 					resp.record[countValidRecords].class = SS_CLASS_ALL_CS_ASYNC;
-				break;	
+					break;
 				default:
-					dbg("unspoorted class : [%d]\n", classx );	
+					dbg("unspoorted class : [%d]\n", classx );
 					goto error;
-				break;
+					break;
 			}
 
 			countValidRecords++;
@@ -1137,19 +1152,26 @@ error:
 	else
 	{
 		dbg("no active status - return to user")
+	}
+
+	if(sp_response->success > 0){
+		resp.err = TCORE_RETURN_SUCCESS;
+	}
+	else{
 		resp.err = TCORE_RETURN_FAILURE;
 	}
+
 	dbg("on_response_ss_waiting_get - rsp.err : %d, ur : %x", resp.err, ur);
 
 	ReleaseResponse();
 
 	if ( ur )
 		tcore_user_request_send_response(ur, info->resp, sizeof(struct tresp_ss_waiting), &resp);
-	else 
+	else
 		dbg("[ error ] ur is 0");
 
 	g_free( user_data );
-	
+
 }
 
 static void on_confirmation_ss_ussd( TcorePending *p, int data_len, const void *data, void *user_data )
@@ -1164,13 +1186,13 @@ static void on_confirmation_ss_ussd( TcorePending *p, int data_len, const void *
 	ur = tcore_pending_ref_user_request(p);
 
 
-	printResponse();	
-	
+	printResponse();
+
 	info = (struct ss_confirm_info*)user_data;
-	
+
 	if(sp_response->success > 0){
 		resp.err = TCORE_RETURN_SUCCESS;
-	}	
+	}
 	else{
 		resp.err = TCORE_RETURN_FAILURE;
 	}
@@ -1178,7 +1200,7 @@ static void on_confirmation_ss_ussd( TcorePending *p, int data_len, const void *
 	dbg("on_confirmation_ss_ussd - rsp.err : %d, ur : %x", resp.err, ur);
 
 
-	if ( resp.err ) {
+	if (sp_response->success > 0) {
 
 		UssdSession *ussd_s = 0;
 		enum tcore_ss_ussd_type type = 0;
@@ -1197,7 +1219,7 @@ static void on_confirmation_ss_ussd( TcorePending *p, int data_len, const void *
 
 			tcore_ss_ussd_get_session_data( ussd_s, (void**)&ur2 );
 			if ( ur2 )
-				tcore_user_request_free( ur2 );
+				tcore_user_request_unref( ur2 );
 
 			tcore_ss_ussd_destroy_session( ussd_s );
 		}
@@ -1209,6 +1231,9 @@ static void on_confirmation_ss_ussd( TcorePending *p, int data_len, const void *
 
 		ReleaseResponse();
 	}
+
+	g_free( user_data );
+
 }
 
 
@@ -1248,7 +1273,7 @@ static TReturn _ss_barring_set( CoreObject *o, UserRequest *ur, enum telephony_s
 	int opco;
 	int classx;
 	char* facility = NULL;
-	
+
 
 	barring = (struct treq_ss_barring*)tcore_user_request_ref_data( ur, 0 );
 	p		= tcore_object_ref_plugin( o );
@@ -1327,7 +1352,7 @@ static TReturn _ss_barring_set( CoreObject *o, UserRequest *ur, enum telephony_s
 		case SS_CLASS_ALL_CS_SYNC:
 			classx = 16;
 		break;
-	
+
 		default:
 			classx =7;
 			dbg("unsupported class %d. set to default : 7", barring->class);
@@ -1339,10 +1364,8 @@ static TReturn _ss_barring_set( CoreObject *o, UserRequest *ur, enum telephony_s
 	passwd[MAX_SS_BARRING_PASSWORD_LEN]='\0';
 
 
- 	cmd_str = g_strdup_printf("AT+CLCK=\"%s\",%d,\"%s\",%d%s", facility, opco, passwd, classx,"\r");
+	cmd_str = g_strdup_printf("AT+CLCK=\"%s\",%d,\"%s\",%d%s", facility, opco, passwd, classx,"\r");
 	dbg("request command : %s", cmd_str);
-	
-
 
 	user_data = g_new0( struct ss_confirm_info, 1 );
 
@@ -1370,10 +1393,10 @@ static TReturn _ss_barring_set( CoreObject *o, UserRequest *ur, enum telephony_s
 	return TCORE_RETURN_SUCCESS;
 }
 
-static TReturn _ss_barring_get( CoreObject *o, 
-								UserRequest *ur, 
-								enum telephony_ss_class class, 
-								enum telephony_ss_barring_mode mode, 
+static TReturn _ss_barring_get( CoreObject *o,
+								UserRequest *ur,
+								enum telephony_ss_class class,
+								enum telephony_ss_barring_mode mode,
 								enum tcore_response_command resp )
 {
 	TcorePlugin *p = 0;
@@ -1385,7 +1408,7 @@ static TReturn _ss_barring_get( CoreObject *o,
 	char* cmd_str = NULL;
 	int opco, classx;
 	char* facility = NULL;
-	
+
 	p	= tcore_object_ref_plugin( o );
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
@@ -1395,7 +1418,7 @@ static TReturn _ss_barring_get( CoreObject *o,
 
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
-	//query status - opco is fixed to 2 
+	//query status - opco is fixed to 2
 	opco = 2;
 
 	//barring mode
@@ -1452,7 +1475,7 @@ static TReturn _ss_barring_get( CoreObject *o,
 		case SS_CLASS_ALL_CS_SYNC:
 			classx = 16;
 		break;
-	
+
 		default:
 			classx =7;
 			dbg("unsupported class %d. set to default : 7", class);
@@ -1583,13 +1606,13 @@ static TReturn _ss_forwarding_set( CoreObject *o, UserRequest *ur, enum telephon
 		break;
 		case SS_CF_MODE_CFC:
 			reason = 5;
-		break;		
-		
+		break;
+
 		default:
 			dbg("unsupported reason : %d");
 			break;
 	}
-	
+
 	switch(op){
 		case TIZEN_SS_OPCO_DEACTIVATE:
 			mode = 0;
@@ -1631,14 +1654,14 @@ static TReturn _ss_forwarding_set( CoreObject *o, UserRequest *ur, enum telephon
 		case SS_CLASS_ALL_CS_SYNC:
 			classx = 16;
 		break;
-	
+
 		default:
 			classx =7;
 			dbg("unsupported class %d. set to default : 7", forwarding->class);
 		break;
 	}
 
-//number	
+//number
 	len = strlen(forwarding->number);
 	if ( len > 0 ){
 		valid_num = TRUE;
@@ -1672,19 +1695,16 @@ static TReturn _ss_forwarding_set( CoreObject *o, UserRequest *ur, enum telephon
 	else// other opcode does not need num field
 		tmp_str = g_strdup_printf("AT+CCFC=%d,%d,,,%d", reason, mode, classx);
 
-	
 	if(forwarding->mode == SS_CF_MODE_CFNRy){
 		//add time info to 'no reply' case
 		time = (int)(forwarding->time);
-		cmd_str = g_strdup_printf("%s,,,%d%s", tmp_str,time,"\r");	
+		cmd_str = g_strdup_printf("%s,,,%d%s", tmp_str,time,"\r");
 	}
 	else	{
-		cmd_str = g_strdup_printf("%s%s", tmp_str,"\r");	
+		cmd_str = g_strdup_printf("%s%s", tmp_str,"\r");
 	}
 
 	dbg("request command : %s", cmd_str);
-	
-
 
 	user_data->flavor_type = forwarding->mode;
 	user_data->class = forwarding->class;
@@ -1699,10 +1719,10 @@ static TReturn _ss_forwarding_set( CoreObject *o, UserRequest *ur, enum telephon
 	return TCORE_RETURN_SUCCESS;
 }
 
-static TReturn _ss_forwarding_get(	CoreObject *o, 
-									UserRequest *ur, 
-									enum telephony_ss_class class, 
-									enum telephony_ss_forwarding_mode type, 
+static TReturn _ss_forwarding_get(	CoreObject *o,
+									UserRequest *ur,
+									enum telephony_ss_class class,
+									enum telephony_ss_forwarding_mode type,
 									enum tcore_response_command resp )
 {
 	TcorePlugin *p = 0;
@@ -1743,8 +1763,8 @@ static TReturn _ss_forwarding_get(	CoreObject *o,
 		break;
 		case SS_CF_MODE_CFC:
 			reason = 5;
-		break;		
-		
+		break;
+
 		default:
 			dbg("unsupported reason : %d");
 		break;
@@ -1774,7 +1794,7 @@ static TReturn _ss_forwarding_get(	CoreObject *o,
 			classx =7;
 			dbg("unsupported class %d. set to default : 7", class);
 		break;
-	}	
+	}
 
 	//query status - mode set to 2
 	mode =2;
@@ -1839,14 +1859,14 @@ static TReturn _ss_waiting_set( CoreObject *o, UserRequest *ur, enum telephony_s
 	int mode=0, classx=0;
 	char* cmd_str;
 	struct ATReqMetaInfo metainfo;
-	
+
 //set metainfo
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 
 	tcore_user_request_set_metainfo(ur, sizeof(struct ATReqMetaInfo), &metainfo);
-	
+
 	p	= tcore_object_ref_plugin( o );
 
 	waiting = (struct treq_ss_waiting*) tcore_user_request_ref_data( ur, 0 );
@@ -1856,7 +1876,7 @@ static TReturn _ss_waiting_set( CoreObject *o, UserRequest *ur, enum telephony_s
 	if ( opco == TIZEN_SS_OPCO_ACTIVATE ){
 		user_data->resp = TRESP_SS_WAITING_ACTIVATE;
 		mode = 1;//enable
-	}	
+	}
 	else if ( opco == TIZEN_SS_OPCO_DEACTIVATE ){
 		user_data->resp = TRESP_SS_WAITING_DEACTIVATE;
 		mode =0; //diable
@@ -1864,32 +1884,32 @@ static TReturn _ss_waiting_set( CoreObject *o, UserRequest *ur, enum telephony_s
 	else
 		dbg("[ error ] unknown ss mode (0x%x)", opco);
 
-switch(waiting->class)
+	switch(waiting->class)
 	{
 		case SS_CLASS_ALL_TELE:
 			classx =7;
-		break;
+			break;
 		case SS_CLASS_VOICE:
 			classx =1;
-		break;
+			break;
 		case SS_CLASS_ALL_DATA_TELE:
 			classx =2;
-		break;
+			break;
 		case SS_CLASS_FAX:
 			classx =4;
-		break;
+			break;
 		case SS_CLASS_SMS:
 			classx = 8;
-		break;
-	
+			break;
+
 		default:
 			classx =7;
 			dbg("unsupported class %d. set to default : 7", waiting->class);
-		break;
-	}	
-	
+			break;
+	}
 
-	user_data->class = waiting->class;
+
+user_data->class = waiting->class;
 	user_data->flavor_type = (int)opco;
 
 	cmd_str = g_strdup_printf("AT+CCWA=1,%d,%d%s", mode, classx,"\r"); //always enable +CCWA: unsolicited cmd
@@ -1904,9 +1924,9 @@ switch(waiting->class)
 	return TCORE_RETURN_SUCCESS;
 }
 
-static TReturn _ss_waiting_get( CoreObject *o, 
-								UserRequest *ur, 
-								enum telephony_ss_class class, 
+static TReturn _ss_waiting_get( CoreObject *o,
+								UserRequest *ur,
+								enum telephony_ss_class class,
 								enum tcore_response_command resp )
 {
 	TcorePlugin *p = 0;
@@ -1925,7 +1945,7 @@ static TReturn _ss_waiting_get( CoreObject *o,
 	info_len = sizeof(struct ATReqMetaInfo);
 
 	tcore_user_request_set_metainfo(ur, sizeof(struct ATReqMetaInfo), &metainfo);
-	
+
 	p	= tcore_object_ref_plugin( o );
 
 	switch(class)
@@ -1950,7 +1970,7 @@ static TReturn _ss_waiting_get( CoreObject *o,
 			classx =7;
 			dbg("unsupported class %d. set to default : 7", class);
 		break;
-	}	
+	}
 
 	dbg("allocating user data");
 	user_data = g_new0( struct ss_confirm_info, 1 );
@@ -2000,6 +2020,73 @@ static TReturn s_ss_cli_deactivate( CoreObject *o, UserRequest *ur )
 
 static TReturn s_ss_cli_get_status( CoreObject *o, UserRequest *ur )
 {
+	TcorePlugin *p = 0;
+
+	struct treq_ss_cli *cli = 0;
+	gboolean ret = FALSE;
+	char *cmd_prefix = NULL, *rsp_prefix = NULL, *cmd_str = NULL;
+	struct ATReqMetaInfo metainfo;
+	enum  telephony_ss_cli_type *user_data = 0;
+
+	int info_len =0;
+
+	p = tcore_object_ref_plugin(o);
+
+	cli = (struct treq_ss_cli*)tcore_user_request_ref_data( ur, 0 );
+
+	switch(cli->type){
+		case SS_CLI_TYPE_CLIP:
+			cmd_prefix = "+CLIP";
+			rsp_prefix = "+CLIP:";
+		break;
+
+		case SS_CLI_TYPE_CLIR:
+			cmd_prefix = "+CLIR";
+			rsp_prefix = "+CLIR:";
+		break;
+
+		case SS_CLI_TYPE_COLP:
+			cmd_prefix = "+COLP";
+			rsp_prefix = "+COLP:";
+		break;
+
+		case SS_CLI_TYPE_CDIP:
+			cmd_prefix = "+CDIP";
+			rsp_prefix = "+CDIP:";
+		break;
+
+		default:
+			dbg("unsupported cli_type : %d", cli->type);
+			return TCORE_RETURN_FAILURE;
+		break;
+	}
+
+	dbg("cmd_prefix : %s",cmd_prefix);
+
+//set metaInfo
+	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
+	metainfo.type = SINGLELINE;
+	memcpy(metainfo.responsePrefix,rsp_prefix,strlen(rsp_prefix));
+	info_len = sizeof(struct ATReqMetaInfo);
+
+	tcore_user_request_set_metainfo(ur, sizeof(struct ATReqMetaInfo), &metainfo);
+
+	//make cmd string
+
+	cmd_str = g_strdup_printf("AT%s?%s", cmd_prefix, "\r");
+	dbg("request cmd : %s", cmd_str);
+
+	// make userinfo for callback
+	user_data = g_new0( enum telephony_ss_cli_type, 1 );
+	*user_data = cli->type;
+
+	ret = _ss_request_message( o, ur, cmd_str, strlen(cmd_str), on_response_ss_waiting_get, user_data );
+
+	g_free(cmd_str);
+
+	if ( !ret )
+		return TCORE_RETURN_FAILURE;
+
 	return TCORE_RETURN_SUCCESS;
 }
 
@@ -2010,17 +2097,17 @@ static TReturn s_ss_send_ussd( CoreObject *o, UserRequest *ur )
 
 	struct treq_ss_ussd *ussd = 0;
 	struct ss_confirm_info *user_data = 0;
-		
+
 	gboolean ret = FALSE;
 	char* cmd_str;
 	struct ATReqMetaInfo metainfo;
-	
-//set metainfo
+
+	//set metainfo
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	tcore_user_request_set_metainfo(ur, sizeof(struct ATReqMetaInfo), &metainfo);
-	
+
 	p = tcore_object_ref_plugin(o);
 	ussd = (struct treq_ss_ussd*)tcore_user_request_ref_data( ur, 0 );
 
@@ -2033,7 +2120,7 @@ static TReturn s_ss_send_ussd( CoreObject *o, UserRequest *ur )
 
 	ussd_s = tcore_ss_ussd_get_session( o );
 	if ( !ussd_s ) {
-		tcore_ss_ussd_create_session( o, (enum tcore_ss_ussd_type)ussd->type, (void*)tcore_user_request_dup(ur), 0 );
+		tcore_ss_ussd_create_session( o, (enum tcore_ss_ussd_type)ussd->type, (void*)tcore_user_request_ref(ur), 0 );
 	} else {
 
 		if ( ussd->type == SS_USSD_TYPE_USER_INITIATED ) {
@@ -2093,7 +2180,7 @@ static TReturn s_ss_manage_call_0_send( CoreObject* o, UserRequest* ur, ConfirmC
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2131,7 +2218,7 @@ static TReturn s_ss_manage_call_1_send( CoreObject* o, UserRequest* ur, ConfirmC
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2169,7 +2256,7 @@ static TReturn s_ss_manage_call_1x_send( CoreObject* o, UserRequest* ur, const i
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2207,7 +2294,7 @@ static TReturn s_ss_manage_call_2_send( CoreObject* o, UserRequest* ur, ConfirmC
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2245,7 +2332,7 @@ static TReturn s_ss_manage_call_2x_send( CoreObject* o, UserRequest* ur, const i
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2279,9 +2366,9 @@ static TReturn s_ss_manage_call_3_send( CoreObject* o, UserRequest* ur, ConfirmC
 	TcorePlugin *p = NULL;
 	TcoreHal *h = NULL;
 	TcorePending *pending = NULL;
-	char*						cmd_str = NULL;
+	char* cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
-	int info_len =0;	
+	int info_len =0;
 
 	GSList *l = 0;
 	CallObject *co = 0;
@@ -2298,7 +2385,7 @@ static TReturn s_ss_manage_call_3_send( CoreObject* o, UserRequest* ur, ConfirmC
 	dbg("active call id : [ %d ]");
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2337,7 +2424,7 @@ static TReturn s_ss_manage_call_4_send( CoreObject* o, UserRequest* ur, ConfirmC
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2348,7 +2435,7 @@ static TReturn s_ss_manage_call_4_send( CoreObject* o, UserRequest* ur, ConfirmC
 
 
 	cmd_str = g_strdup_printf("%s%s", "AT+CHLD=4", "\r");
- 
+
 	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
@@ -2377,7 +2464,7 @@ static TReturn s_ss_manage_call_4dn_send( CoreObject* o, UserRequest* ur, const 
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2388,7 +2475,7 @@ static TReturn s_ss_manage_call_4dn_send( CoreObject* o, UserRequest* ur, const 
 
 
 	cmd_str = g_strdup_printf("%s%s%s", "AT+CHLD=4", number,"\r");
- 
+
 	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
@@ -2418,7 +2505,7 @@ static TReturn s_ss_manage_call_5_send( CoreObject* o, UserRequest* ur, ConfirmC
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2428,7 +2515,7 @@ static TReturn s_ss_manage_call_5_send( CoreObject* o, UserRequest* ur, ConfirmC
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
 
- 	cmd_str = g_strdup_printf("%s%s", "AT+CHLD=5", "\r");
+	cmd_str = g_strdup_printf("%s%s", "AT+CHLD=5", "\r");
 
 	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
 
@@ -2458,7 +2545,7 @@ static TReturn s_ss_manage_call_6_send( CoreObject* o, UserRequest* ur, ConfirmC
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NO_RESULT;
@@ -2468,7 +2555,7 @@ static TReturn s_ss_manage_call_6_send( CoreObject* o, UserRequest* ur, ConfirmC
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
 
- 	cmd_str= g_strdup_printf("%s%s", "AT+CHLD=6", "\r");
+	cmd_str= g_strdup_printf("%s%s", "AT+CHLD=6", "\r");
 
 	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
 
@@ -2490,14 +2577,14 @@ static TReturn s_ss_manage_call_6_send( CoreObject* o, UserRequest* ur, ConfirmC
 #endif
 
 
-gboolean s_ss_init( TcorePlugin *p )
+gboolean s_ss_init(TcorePlugin *p, TcoreHal *h)
 {
 	CoreObject *so = 0, *co = 0;
 	struct property_call_info *data = 0;
 
 	dbg("s_ss_init()");
 
-	so = tcore_ss_new( p, "ss", &ss_ops );
+	so = tcore_ss_new(p, "ss", &ss_ops, h);
 	if (!so) {
 		dbg("[ error ] ss_new()");
 		return FALSE;

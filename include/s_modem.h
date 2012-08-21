@@ -21,8 +21,9 @@
 #ifndef __S_MODEM_H__
 #define __S_MODEM_H__
 
-gboolean s_modem_init(TcorePlugin *p);
+gboolean s_modem_init(TcorePlugin *p, TcoreHal *h);
 void s_modem_exit(TcorePlugin *p);
 
 gboolean s_modem_send_poweron(TcorePlugin *p);
+
 #endif

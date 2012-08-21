@@ -108,9 +108,9 @@ static void on_confirmation_modem_message_send( TcorePending *p, gboolean result
 	if((metainfo->type == SINGLELINE)||
 		(metainfo->type == MULTILINE))
 	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);	
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else
 	{
@@ -128,7 +128,7 @@ static void on_confirmation_modem_message_send( TcorePending *p, gboolean result
 		dbg("SEND OK");
 	}
 }
-static void on_sys_event_modem_power(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_sys_event_modem_power(CoreObject *o, const void *event_info, void *user_data)
 {
 	struct tnoti_modem_power modem_power;
 	enum cp_state *state;
@@ -147,13 +147,15 @@ static void on_sys_event_modem_power(CoreObject *o, const void *event_info, void
 
 	} else {
 		dbg("useless state : (0x%x)", *state);
-		return ;
+		return TRUE;
 	}
 
 	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_MODEM_POWER,
 			sizeof(struct tnoti_modem_power), &modem_power);
+
+	return TRUE;
 }
-static void on_event_modem_power(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_modem_power(CoreObject *o, const void *event_info, void *user_data)
 {
 	struct treq_modem_set_flightmode flight_mode_set;
 	struct tnoti_modem_power modem_power;
@@ -164,7 +166,7 @@ static void on_event_modem_power(CoreObject *o, const void *event_info, void *us
 	strg = tcore_server_find_storage(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), "vconf");
 	flight_mode_set.enable = tcore_storage_get_bool(strg, STORAGE_KEY_SETAPPL_FLIGHT_MODE_BOOL);
 
-	h = tcore_plugin_ref_hal(tcore_object_ref_plugin(o));
+	h = tcore_object_get_hal(o);
 
 	tcore_hal_set_power_state(h, TRUE);
 
@@ -187,9 +189,11 @@ static void on_event_modem_power(CoreObject *o, const void *event_info, void *us
 
 	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_MODEM_POWER,
 			sizeof(struct tnoti_modem_power), &modem_power);
+
+	return TRUE;
 }
 
-static void on_event_modem_phone_state(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_modem_phone_state(CoreObject *o, const void *event_info, void *user_data)
 {
 	char* line = (char*)event_info;
 	GQueue *queue;
@@ -230,6 +234,8 @@ static void on_event_modem_phone_state(CoreObject *o, const void *event_info, vo
 
 	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_MODEM_FLIGHT_MODE,
 			sizeof(struct tnoti_modem_flight_mode), &modem_flight_mode);
+
+	return TRUE;
 }
 static void on_response_poweron(TcorePending *p, int data_len, const void *data, void *user_data)
 {
@@ -238,8 +244,8 @@ static void on_response_poweron(TcorePending *p, int data_len, const void *data,
 	int response = 0;
 	int err;
 
-#define CPAS_RES_READY 		0
-#define CPAS_RES_UNAVAIL 	1
+#define CPAS_RES_READY		0
+#define CPAS_RES_UNAVAIL	1
 #define CPAS_RES_UNKNOWN	2
 #define CPAS_RES_RINGING	3
 #define CPAS_RES_CALL_PROGRESS	4
@@ -248,7 +254,7 @@ static void on_response_poweron(TcorePending *p, int data_len, const void *data,
 //print sp_response - for debug
 	printResponse();
 
-	if(sp_response->success > 0){	
+	if(sp_response->success > 0){
 		dbg("RESPONSE OK");
 		//parse response
 		line = sp_response->p_intermediates->line;
@@ -270,7 +276,7 @@ static void on_response_poweron(TcorePending *p, int data_len, const void *data,
 		switch(response)
 		{
 			case CPAS_RES_READY:
-			case CPAS_RES_RINGING:	
+			case CPAS_RES_RINGING:
 			case CPAS_RES_CALL_PROGRESS:
 			case CPAS_RES_ASLEEP:
 				bpoweron = TRUE;
@@ -301,7 +307,7 @@ error:
 
 		dbg("CPAS once again");
 		s_modem_send_poweron(tcore_object_ref_plugin(tcore_pending_ref_core_object(p)));
-	}	
+	}
 }
 
 static void on_response_set_flight_mode(TcorePending *p, int data_len, const void *data, void *user_data)
@@ -319,43 +325,43 @@ static void on_response_set_flight_mode(TcorePending *p, int data_len, const voi
 	ur = tcore_pending_ref_user_request(p);
 
 	if(sp_response->success > 0)
-	{	
+	{
 		dbg("RESPONSE OK");
 		//parse response
 		queue = tcore_object_ref_user_data(o);
-		if (queue) 
+		if (queue)
 		{
-			ur = tcore_user_request_dup(ur);
+			ur = tcore_user_request_ref(ur);
 			util_add_waiting_job(queue, ID_RESERVED_AT, ur);
 		}
 
 		ReleaseResponse();
-	}	
+	}
 	else
 	{
 		dbg("RESPONSE NOK");
 		line = sp_response->finalResponse;
 		err = at_tok_start(&line);
-		if (err < 0) 
+		if (err < 0)
 		{
 			dbg("err cause not specified or string corrupted");
-			   res.result = TCORE_RETURN_3GPP_ERROR;
+			res.result = TCORE_RETURN_3GPP_ERROR;
 		}
 		else
 		{
 			err = at_tok_nextint(&line, &response);
-			if (err < 0) 
+			if (err < 0)
 			{
 				dbg("err not specified or string not contail error");
-		   		res.result = TCORE_RETURN_3GPP_ERROR;
+				res.result = TCORE_RETURN_3GPP_ERROR;
 			}
 			else
 			{
-		    		res.result = convertCMEError((enum ATCMEError)response);
+				res.result = convertCMEError((enum ATCMEError)response);
 			}
 
 			ReleaseResponse();
-			
+
 			tcore_user_request_send_response(ur, TRESP_MODEM_SET_FLIGHTMODE, sizeof(struct tresp_modem_set_flightmode), &res);
 		}
 	}
@@ -369,7 +375,7 @@ static void on_response_imei(TcorePending *p, int data_len, const void *data, vo
 	char *line;
 	int response;
 	int err;
-	
+
 	printResponse();
 
 	memset(&res, 0, sizeof(struct tresp_modem_get_imei));
@@ -384,10 +390,10 @@ static void on_response_imei(TcorePending *p, int data_len, const void *data, vo
 		strncpy(res.imei, line, 16);
 
 		dbg("imei = [%s]", res.imei);
-		
+
 		plugin = tcore_pending_ref_plugin(p);
 		imei_property = tcore_plugin_ref_property(plugin, "IMEI");
-		if (imei_property) 
+		if (imei_property)
 		{
 			imei_property->sn_index = TAPI_MISC_ME_IMEI;
 			imei_property->sn_len = strlen(res.imei);
@@ -400,7 +406,7 @@ static void on_response_imei(TcorePending *p, int data_len, const void *data, vo
 		line = sp_response->finalResponse;
 
 		err = at_tok_start(&line);
-		if (err < 0) 
+		if (err < 0)
 		{
 			dbg("err cause not specified or string corrupted");
 			   res.result = TCORE_RETURN_3GPP_ERROR;
@@ -408,20 +414,20 @@ static void on_response_imei(TcorePending *p, int data_len, const void *data, vo
 		else
 		{
 			err = at_tok_nextint(&line, &response);
-			if (err < 0) 
+			if (err < 0)
 			{
 				dbg("err not specified or string not contail error");
-		   		res.result = TCORE_RETURN_3GPP_ERROR;
+				res.result = TCORE_RETURN_3GPP_ERROR;
 			}
 			else
 			{
-		    		res.result = convertCMEError((enum ATCMEError)response);
+				res.result = convertCMEError((enum ATCMEError)response);
 			}
 		}
 	}
-	
+
 	ReleaseResponse();
-	
+
 	ur = tcore_pending_ref_user_request(p);
 	tcore_user_request_send_response(ur, TRESP_MODEM_GET_IMEI, sizeof(struct tresp_modem_get_imei), &res);
 
@@ -434,7 +440,7 @@ static void on_response_version(TcorePending *p, int data_len, const void *data,
 	struct TelMiscVersionInformation *vi_property;
 	struct tresp_modem_get_version res;
 	UserRequest *ur;
-	char* line=NULL; 
+	char* line=NULL;
 	char *swver= NULL,*hwver=NULL, *caldate=NULL,*pcode=NULL,*id=NULL;
 
 	int response, err;
@@ -460,7 +466,7 @@ static void on_response_version(TcorePending *p, int data_len, const void *data,
 			err = at_tok_nextstr(&line,&id);
 
 		dbg("version: sw=[%s], hw=[%s], rf_cal=[%s], product_code=[%s], model_id=[%s]", swver, hwver, caldate, pcode, id);
-		
+
 		vi = calloc(sizeof(struct TelMiscVersionInformation), 1);
 		memcpy(vi->szSwVersion, swver, strlen(swver));
 		memcpy(vi->szHwVersion, hwver, strlen(hwver));
@@ -473,7 +479,7 @@ static void on_response_version(TcorePending *p, int data_len, const void *data,
 		snprintf(res.hardware, (AT_VER_LEN >strlen(hwver) ?strlen(hwver):AT_VER_LEN), "%s", hwver);
 
 		plugin = tcore_pending_ref_plugin(p);
-		vi_property = tcore_plugin_ref_property(plugin, "VERSION");		
+		vi_property = tcore_plugin_ref_property(plugin, "VERSION");	
 		memcpy(vi_property, vi, sizeof(struct TelMiscVersionInformation));
 	}
 	else
@@ -484,7 +490,7 @@ static void on_response_version(TcorePending *p, int data_len, const void *data,
 		memset(&res, 0, sizeof(struct tresp_modem_get_version));
 
 		err = at_tok_start(&line);
-		if (err < 0) 
+		if (err < 0)
 		{
 			dbg("err cause not specified or string corrupted");
 			   res.result = TCORE_RETURN_3GPP_ERROR;
@@ -492,23 +498,23 @@ static void on_response_version(TcorePending *p, int data_len, const void *data,
 		else
 		{
 			err = at_tok_nextint(&line, &response);
-			if (err < 0) 
+			if (err < 0)
 			{
 				dbg("err not specified or string not contail error");
-		   		res.result = TCORE_RETURN_3GPP_ERROR;
+				res.result = TCORE_RETURN_3GPP_ERROR;
 			}
 			else
 			{
-		    		res.result = convertCMEError((enum ATCMEError)response);
+				res.result = convertCMEError((enum ATCMEError)response);
 			}
 		}
-	}	
+	}
 
 	ReleaseResponse();
 
 	ur = tcore_pending_ref_user_request(p);
 	tcore_user_request_send_response(ur, TRESP_MODEM_GET_VERSION, sizeof(struct tresp_modem_get_version), &res);
-	
+
 }
 
 static TReturn power_on(CoreObject *o, UserRequest *ur)
@@ -519,6 +525,14 @@ static TReturn power_on(CoreObject *o, UserRequest *ur)
 
 static TReturn power_off(CoreObject *o, UserRequest *ur)
 {
+	struct tnoti_modem_power modem_power;
+	modem_power.state = MODEM_STATE_OFFLINE;
+
+	tcore_modem_set_powered(o, FALSE);
+
+	tcore_server_send_notification( tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_MODEM_POWER,
+			sizeof(struct tnoti_modem_power), &modem_power);
+
 	return TCORE_RETURN_SUCCESS;
 }
 static TReturn power_reset(CoreObject *o, UserRequest *ur)
@@ -536,7 +550,7 @@ static TReturn get_imei(CoreObject *o, UserRequest *ur)
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = NUMERIC;
@@ -557,7 +571,7 @@ static TReturn get_imei(CoreObject *o, UserRequest *ur)
 	tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_modem_message_send, NULL);
-	
+
 
 	tcore_hal_send_request(h, pending);
 
@@ -573,8 +587,8 @@ static TReturn get_version(CoreObject *o, UserRequest *ur)
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
 
-		p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	p = tcore_object_ref_plugin(o);
+	h = tcore_object_get_hal(o);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = SINGLELINE;
@@ -585,8 +599,8 @@ static TReturn get_version(CoreObject *o, UserRequest *ur)
 
 	cmd_str = g_strdup("AT+CGMR\r");
 
-	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));	
-	
+	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	free(cmd_str);
@@ -613,10 +627,9 @@ static TReturn set_flight_mode(CoreObject *o, UserRequest *ur)
 	int info_len =0;
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	req_data = tcore_user_request_ref_data(ur, NULL);
-
 
 	if (req_data->enable) {
 		dbg("Flight mode on/n");
@@ -634,7 +647,7 @@ static TReturn set_flight_mode(CoreObject *o, UserRequest *ur)
 
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
-	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));	
+	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
@@ -661,14 +674,14 @@ static struct tcore_modem_operations modem_ops =
 	.get_version = get_version,
 };
 
-gboolean s_modem_init(TcorePlugin *p)
+gboolean s_modem_init(TcorePlugin *p, TcoreHal *h)
 {
 	CoreObject *o;
 	GQueue *work_queue;
 	struct TelMiscVersionInformation *vi_property;
 	struct TelMiscSNInformation *imei_property;
 
-	o = tcore_modem_new(p, "modem", &modem_ops);
+	o = tcore_modem_new(p, "modem", &modem_ops, h);
 	if (!o)
 		return FALSE;
 
@@ -725,9 +738,8 @@ gboolean s_modem_send_poweron(TcorePlugin *p)
 	char*						cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
-	
+
 	ur = tcore_user_request_new(NULL, NULL);
-	hal = tcore_plugin_ref_hal(p);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 	metainfo.type = SINGLELINE;
@@ -740,7 +752,8 @@ gboolean s_modem_send_poweron(TcorePlugin *p)
 	dbg("cmd : %s, prefix(if any) :%s, cmd_len : %d",cmd_str, metainfo.responsePrefix, strlen(cmd_str));
 
 	o = tcore_plugin_ref_core_object(p, "modem");
-	
+	hal = tcore_object_get_hal(o);
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	free(cmd_str);

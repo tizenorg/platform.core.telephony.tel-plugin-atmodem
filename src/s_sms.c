@@ -274,22 +274,22 @@ static int util_sms_ipcError2SmsError(int err)
 		case 302: //Operation not allowed;
 		case 303: //Operation not supported;
 			returnStatus = SMS_OPERATION_NOT_SUPPORTED;
-			break;				
+			break;
 		case 304: //Invalid PDU mode parameter;
 		case 305: //Invalid text mode parameter;
 			returnStatus = SMS_INVALID_PARAMETER_FORMAT;
-			break;				
+			break;
 		case 320: //memory failure;
 		case 321: //invalid memory index;
 		case 322: //memory full;
 			returnStatus = SMS_MEMORY_FAILURE;
-			break;				
+			break;
 		case 330: //SCA unknown;
 		case 500: //Unknown error;
 		default:
 			returnStatus = SMS_UNKNOWN;
-			break;	
-		}					
+			break;
+	}
 
 	return returnStatus;
 }
@@ -298,7 +298,7 @@ static int util_sms_ipcError2SmsError(int err)
 /************************  Events Cb  *************************/
 /************************************************************/
 
-static void on_event_sms_incom_msg(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_sms_incom_msg(CoreObject *o, const void *event_info, void *user_data)
 {
 	struct smsDeliveryPDU *smsPdu = (struct smsDeliveryPDU *)event_info;
 	struct property_sms_info *property;
@@ -331,7 +331,7 @@ static void on_event_sms_incom_msg(CoreObject *o, const void *event_info, void *
 		property = tcore_plugin_ref_property(tcore_object_ref_plugin(o), "SMS");
 		if(!property) {
 			dbg("property is NULL");
-			return;
+			return TRUE;
 		}
 
 		memcpy(gsmMsgInfo.msgInfo.sca, &smsPdu->pdu[0], (ScLength+1));
@@ -355,35 +355,26 @@ static void on_event_sms_incom_msg(CoreObject *o, const void *event_info, void *
 	{
 		dbg("Invalid Message Length");
 	}
-	
-	return;
+
+	return TRUE;
 }
 
-static void on_event_sms_device_ready(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_sms_device_ready(CoreObject *o, const void *event_info, void *user_data)
 {
-	struct tnoti_sms_device_ready_status deviceStatusInfo = {0,};
-	struct property_sms_info *property = NULL;
-
+	struct tnoti_sms_ready_status readyStatusInfo = {0,};
 	int rtn = -1;
 
 	dbg(" Func Entrance");
+	readyStatusInfo.status = TRUE;
+	tcore_sms_set_ready_status(o, readyStatusInfo.status);
 
-	property = tcore_plugin_ref_property(tcore_object_ref_plugin(o), "SMS");
-	if(!property) {
-		dbg("property is NULL");
-		return;
-	}
+	dbg("SMS Ready status = [%s]", readyStatusInfo.status ? "TRUE" : "FALSE");
 
-	property->bDevice_Ready = 1; // TRUE
-	deviceStatusInfo.status = 1;
-
-	dbg("bDevice_Ready = [0x%02x]", property->bDevice_Ready);
-
-	rtn = tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_SMS_DEVICE_READY, sizeof(struct tnoti_sms_device_ready_status), &deviceStatusInfo);
+	rtn = tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_SMS_DEVICE_READY, sizeof(struct tnoti_sms_ready_status), &readyStatusInfo);
 
 	dbg(" Return value [%d]",rtn);
 
-	return;
+	return TRUE;
 }
 
 /*************************************************************/
@@ -406,9 +397,9 @@ static void on_confirmation_sms_message_send( TcorePending *p, gboolean result, 
 	if((metainfo->type == SINGLELINE)||
 		(metainfo->type == MULTILINE))
 	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);	
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else
 	{
@@ -445,24 +436,24 @@ static void on_response_send_umts_msg(TcorePending *p, int data_len, const void 
 	}
 
 	printResponse();
-	
+
 	if(sp_response->success == TRUE)
 	{
 		ReleaseResponse();
-		ur = tcore_user_request_dup(ur);
+		ur = tcore_user_request_ref(ur);
 		ret = (int) Send_SmsSubmitTpdu(tcore_pending_ref_core_object(p), ur);
 
 		if(ret != (int)TCORE_RETURN_SUCCESS)
 		{
 			respSendMsg.result = SMS_INVALID_PARAMETER;
 			tcore_user_request_send_response(ur, TRESP_SMS_SEND_UMTS_MSG, sizeof(struct tresp_sms_send_umts_msg), &respSendMsg);
-		}		
+		}
 	}
 	else
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -490,35 +481,36 @@ static void on_response_send_smsSubmitTpdu(TcorePending *p, int data_len, const 
 	int mr;
 	int error;
 	char *hexData;
-	
+
 	char cSCA = '\0';
 
 	printResponse();
-	
+
 	if(sp_response->success > 0)
 	{
 		line = sp_response->p_intermediates->line;
-		
+
 		memset(&respUmtsInfo, 0 , sizeof(struct tresp_sms_send_umts_msg));
 		// +CMGS: <mr>[, <ackpdu>]
 		// SMS_SMDATA_SIZE_MAX + 1
 		ret = at_tok_start(&line);
-		if (ret < 0) 
-			AT_NOTI_TOK_ERROR(line);
+		if (ret < 0)
+			AT_TOK_ERROR(line);
 
 		ret = at_tok_nextint(&line, &mr);
-		if (ret < 0) 
+		if (ret < 0)
 			return;
 
 		ret = at_tok_nextstr(&line, &hexData);
-		if (ret < 0) 
+		if (ret < 0)
 		{
 			dbg(" ackpdu is NULL ");
+			ackpdu = NULL;
+		} else {
+			ackpdu = util_hexStringToBytes(hexData);
+			util_hex_dump("    ", strlen(hexData)/2, ackpdu);
 		}
 
-		ackpdu = util_hexStringToBytes(hexData);
-		util_hex_dump("    ", strlen(hexData)/2, ackpdu);
-			
 		dbg(" Func Entrance ");
 
 		ur = tcore_pending_ref_user_request(p);
@@ -526,7 +518,11 @@ static void on_response_send_smsSubmitTpdu(TcorePending *p, int data_len, const 
 		{
 			memcpy(respUmtsInfo.dataInfo.sca, &cSCA, sizeof(char));
 
-			respUmtsInfo.dataInfo.msgLength = strlen(ackpdu);
+			if (ackpdu) {
+				respUmtsInfo.dataInfo.msgLength = strlen(ackpdu);
+			} else {
+				respUmtsInfo.dataInfo.msgLength = 0;
+			}
 
 			if ( (respUmtsInfo.dataInfo.msgLength >= 0) && (0xff >= respUmtsInfo.dataInfo.msgLength))
 			{
@@ -563,7 +559,7 @@ static void on_response_send_smsSubmitTpdu(TcorePending *p, int data_len, const 
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -571,21 +567,21 @@ static void on_response_send_smsSubmitTpdu(TcorePending *p, int data_len, const 
 		ret = at_tok_nextint(&line,&error);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
-		
+
 
 		//5. release sp_response & s_responsePrefix - before sending user callback, because user callback can request additional request
 		// and if queue is empty, that req can be directly sent to mdm - can cause sp_response, s_responsePrefix dangling
 		ReleaseResponse();
-		
+
 		ur = tcore_pending_ref_user_request(p);
 		if (ur) {
 			struct tresp_sms_send_umts_msg respSendMsg;
 
 			memset(&respSendMsg, 0, sizeof(struct tresp_sms_send_umts_msg));
 			respSendMsg.result = SMS_INVALID_MANDATORY_INFO;
-			
+
 			respSendMsg.result = util_sms_ipcError2SmsError(error);
-			
+
 			tcore_user_request_send_response(ur, TRESP_SMS_SEND_UMTS_MSG, sizeof(struct tresp_sms_send_umts_msg), &respSendMsg);
 		}
 		else {
@@ -614,12 +610,12 @@ static void on_response_get_storedMsgCnt(TcorePending *p, int data_len, const vo
 	}
 
 	printResponse();
-	
+
 	if(sp_response->success > 0)
 	{
 		//failure case - consider this later
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -629,7 +625,7 @@ static void on_response_get_storedMsgCnt(TcorePending *p, int data_len, const vo
 			AT_TOK_ERROR(line);
 		ret = at_tok_nextint(&line,&totalCount);
 		if (ret < 0)
-			AT_TOK_ERROR(line)		
+			AT_TOK_ERROR(line);
 
 		respStoredMsgCnt.storedMsgCnt.totalCount = totalCount;
 		respStoredMsgCnt.storedMsgCnt.usedCount = usedCount;
@@ -642,7 +638,7 @@ static void on_response_get_storedMsgCnt(TcorePending *p, int data_len, const vo
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -656,7 +652,7 @@ static void on_response_get_storedMsgCnt(TcorePending *p, int data_len, const vo
 
 	ReleaseResponse();
 
-	
+
 	tcore_user_request_send_response(ur, TRESP_SMS_GET_STORED_MSG_COUNT, sizeof(struct tresp_sms_get_storedMsgCnt), &respStoredMsgCnt);
 
 	return;
@@ -687,7 +683,7 @@ static void on_response_get_sca(TcorePending *p, int data_len, const void *data,
 	if(sp_response->success > 0)
 	{
 		respGetSca.result = SMS_SUCCESS;
-		
+
 		line = sp_response->p_intermediates->line;
 		ret = at_tok_start(&line);
 		if (ret < 0)
@@ -710,10 +706,10 @@ static void on_response_get_sca(TcorePending *p, int data_len, const void *data,
 
 		respGetSca.scaAddress.dialNumLen = strlen(scaStr);
 		if(scaType == 145)
-				respGetSca.scaAddress.typeOfNum = SIM_TON_INTERNATIONAL;
+			respGetSca.scaAddress.typeOfNum = SIM_TON_INTERNATIONAL;
 		else		respGetSca.scaAddress.typeOfNum = SIM_TON_NATIONAL;
 		respGetSca.scaAddress.numPlanId = 0;
-		
+
 		memcpy(respGetSca.scaAddress.diallingNum, scaStr, strlen(scaStr));
 
 	}
@@ -721,7 +717,7 @@ static void on_response_get_sca(TcorePending *p, int data_len, const void *data,
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -731,9 +727,9 @@ static void on_response_get_sca(TcorePending *p, int data_len, const void *data,
 			AT_TOK_ERROR(line);
 
 		respGetSca.result = util_sms_ipcError2SmsError(error);
-						
+
 	}
-	
+
 	ReleaseResponse();
 
 	tcore_user_request_send_response(ur, TRESP_SMS_GET_SCA, sizeof(struct tresp_sms_get_sca), &respGetSca);
@@ -755,9 +751,9 @@ static void on_response_set_sca(TcorePending *p, int data_len, const void *data,
 		dbg("no user_request");
 		return;
 	}
-	
+
 	printResponse();
-	
+
 	if(sp_response->success > 0)
 	{
 		respSetSca.result = SMS_SUCCESS;
@@ -766,7 +762,7 @@ static void on_response_set_sca(TcorePending *p, int data_len, const void *data,
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -779,9 +775,9 @@ static void on_response_set_sca(TcorePending *p, int data_len, const void *data,
 	}
 
 	ReleaseResponse();
-	
+
 	tcore_user_request_send_response(ur, TRESP_SMS_SET_SCA, sizeof(struct tresp_sms_get_sca), &respSetSca);
-	
+
 	return;
 }
 
@@ -802,7 +798,7 @@ static void on_response_set_delivery_report(TcorePending *p, int data_len, const
 	}
 
 	printResponse();
-	
+
 	if(sp_response->success > 0)
 	{
 		respSetDeliveryReport.result = SMS_SUCCESS;
@@ -811,7 +807,7 @@ static void on_response_set_delivery_report(TcorePending *p, int data_len, const
 	{
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -825,7 +821,7 @@ static void on_response_set_delivery_report(TcorePending *p, int data_len, const
 
 	ReleaseResponse();
 
-	
+
 	tcore_user_request_send_response(ur, TRESP_SMS_SET_DELIVERY_REPORT, sizeof(struct tresp_sms_set_delivery_report), &respSetDeliveryReport);
 
 	return;
@@ -836,7 +832,7 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 	UserRequest *ur;
 	struct tresp_sms_get_params respGetSmsParams;
 	struct property_sms_info *property = NULL;
-	
+
 	char *line = NULL;
 	int error;
 	int ret = 0;
@@ -854,11 +850,11 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 		dbg("no user_request");
 		return;
 	}
-		
+
 	if(sp_response->success > 0)
-	{		
+	{
 		line = sp_response->p_intermediates->line;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -870,19 +866,19 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
-		if(sw1 != 144 || sw2 != 0) 
+		if(sw1 != 144 || sw2 != 0)
 			respGetSmsParams.result = SMS_UNKNOWN;
 		else
 		{
 			char *hexData;
-			
+
 			ret = at_tok_nextstr(&line,&hexData);
 			if (ret < 0)
 				AT_TOK_ERROR(line);
-			
+
 			recordData = util_hexStringToBytes(hexData);
 			util_hex_dump("    ", strlen(hexData)/2, recordData);
-			
+
 			// respGetSmsParams.paramsInfo.recordIndex = 0;
 			respGetSmsParams.paramsInfo.recordLen = strlen(hexData)/2;
 
@@ -907,7 +903,7 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 		respGetSmsParams.result = SMS_UNKNOWN;
 		//failure case - consider this later
 		line = sp_response->finalResponse;
-		
+
 		ret = at_tok_start(&line);
 		if (ret < 0)
 			AT_TOK_ERROR(line);
@@ -916,11 +912,11 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 		if (ret < 0)
 			AT_TOK_ERROR(line);
 
-		respGetSmsParams.result = util_sms_ipcError2SmsError(error);		
+		respGetSmsParams.result = util_sms_ipcError2SmsError(error);
 	}
 
-	ReleaseResponse();	
-	
+	ReleaseResponse();
+
 	tcore_user_request_send_response(ur, TRESP_SMS_GET_PARAMS, sizeof(struct tresp_sms_get_params), &respGetSmsParams);
 
 	return;
@@ -968,15 +964,15 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 			unsigned char file_type_tag = 0x07;
 			unsigned char *ptr_data;
 
-			char *hexData;	
+			char *hexData;
 			char *recordData;
 			ret = at_tok_nextstr(&line,&hexData);
 			if (ret < 0)
 				AT_TOK_ERROR(line);
-			
+
 			recordData = util_hexStringToBytes(hexData);
 			util_hex_dump("    ", strlen(hexData)/2, recordData);
-		
+
 			ptr_data = (unsigned char *)recordData;
 
 			co_sim = tcore_plugin_ref_core_object(tcore_pending_ref_plugin(p), "sim");
@@ -1023,7 +1019,7 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 								dbg("Getting FileType: [Transparent file type]");
 								/* increment to next byte */
 								ptr_data++;
-								file_type = 0x01; 	//SIM_FTYPE_TRANSPARENT
+								file_type = 0x01;	//SIM_FTYPE_TRANSPARENT
 								/*	data coding byte - value 21 */
 								ptr_data++;
 								break;
@@ -1081,7 +1077,7 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 					} else {
 						dbg("INVALID FCP received - DEbug!");
 						free(recordData);
-						ReleaseResponse();						
+						ReleaseResponse();
 						return;
 					}
 
@@ -1158,7 +1154,7 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 					} else {
 						dbg("INVALID FCP received[0x%x] - DEbug!", *ptr_data);
 						free(recordData);
-						ReleaseResponse();						
+						ReleaseResponse();
 						return;
 					}
 
@@ -1210,7 +1206,7 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 					return;
 				}
 			}
-			else if (tcore_sim_get_type(co_sim) == SIM_TYPE_GSM) 
+			else if (tcore_sim_get_type(co_sim) == SIM_TYPE_GSM)
 			{
 				unsigned char gsm_specific_file_data_len = 0;
 				/*	ignore RFU byte1 and byte2 */
@@ -1289,8 +1285,8 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 						dbg(" not handled file type");
 						break;
 				}
-			} 
-			else 
+			}
+			else
 			{
 				dbg(" Card Type - UNKNOWN  [%d]", tcore_sim_get_type(co_sim));
 			}
@@ -1299,10 +1295,10 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 
 			respGetParamCnt.recordCount = num_of_records;
 			respGetParamCnt.result = SMS_SUCCESS;
-			
+
 			free(recordData);
 		}
-		else 
+		else
 		{
 			/*2. SIM access fail case*/
 			dbg("SIM access fail");
@@ -1332,7 +1328,6 @@ static TReturn send_umts_msg(CoreObject *o, UserRequest *ur)
 	TcoreHal *h = NULL;
 	TcorePending *pending = NULL;
 	const struct treq_sms_send_umts_msg *sendUmtsMsg = NULL;
-	GQueue *queue = NULL;
 	char *cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
@@ -1342,7 +1337,7 @@ static TReturn send_umts_msg(CoreObject *o, UserRequest *ur)
 	sendUmtsMsg = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!sendUmtsMsg || !h)
 		return TCORE_RETURN_ENOSYS;
@@ -1351,17 +1346,13 @@ static TReturn send_umts_msg(CoreObject *o, UserRequest *ur)
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
 	// AT+CMMS=<mode>
 	cmd_str = g_strdup_printf("AT+CMMS=%d%s", sendUmtsMsg->more, "\r");
 	dbg("[tcore_SMS] *************************MsgLen[%d]", sendUmtsMsg->msgDataPackage.msgLength);
 
-	queue = tcore_object_ref_user_data(o);
-	if (queue)
-		util_add_waiting_job(queue, ID_RESERVED_AT, ur);
-	
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -1371,8 +1362,8 @@ static TReturn send_umts_msg(CoreObject *o, UserRequest *ur)
 	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
 
 	free(cmd_str);
-	
-	return tcore_hal_send_request(h, pending);	
+
+	return tcore_hal_send_request(h, pending);
 }
 
 static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
@@ -1381,7 +1372,6 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 	TcoreHal *h = NULL;
 	TcorePending *pending = NULL;
 	const struct treq_sms_send_umts_msg *sendUmtsMsg = NULL;
-	GQueue *queue = NULL;
 	char *cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
@@ -1398,7 +1388,7 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 	sendUmtsMsg = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!sendUmtsMsg || !h)
 		return TCORE_RETURN_ENOSYS;
@@ -1413,12 +1403,12 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 		if (sendUmtsMsg->msgDataPackage.msgLength < SMS_SMDATA_SIZE_MAX)
 		{
 			memset(tpdu, 0, sizeof(MAX_GSM_SMS_TPDU_SIZE));
-			
+
 			memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 			metainfo.type = SINGLELINE;
 			memcpy(metainfo.responsePrefix,"+CMGS:",strlen("+CMGS:"));
 			info_len = sizeof(struct ATReqMetaInfo);
-			
+
 			tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
 			ScLength = sendUmtsMsg->msgDataPackage.sca[0];
@@ -1453,7 +1443,7 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 			tpduDataLen = sendUmtsMsg->msgDataPackage.msgLength + (ScLength + 2);
 			hexString = calloc(tpduDataLen*2, 1);;
 
-			for( i=0; i<tpduDataLen*2; i+=2) 
+			for( i=0; i<tpduDataLen*2; i+=2)
 			{
 				char value = 0;
 
@@ -1468,15 +1458,11 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 				else hexString[i+1] = (tpdu[i/2] & 0x0f ) + 'A' -10;
 
 			}
-			
+
 			// AT+CMGS=<length><CR>pdu_is_given<ctrl-z/ESC>
 			cmd_str = g_strdup_printf("AT+CMGS=%d%s%s%x%s", sendUmtsMsg->msgDataPackage.msgLength, "\r", hexString, 0x1A,"\r");
 			dbg("cmd_str is %s", cmd_str);
 
-			queue = tcore_object_ref_user_data(o);
-			if (queue)
-				util_add_waiting_job(queue, ID_RESERVED_AT, ur);
-			
 			pending = tcore_pending_new(o, ID_RESERVED_AT);
 			tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 			tcore_pending_set_timeout(pending, 0);
@@ -1484,8 +1470,8 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 			tcore_pending_link_user_request(pending, ur);
 
 			tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
-			
-			api_err = tcore_hal_send_request(h, pending);	
+
+			api_err = tcore_hal_send_request(h, pending);
 
 			free(cmd_str);
 			free(hexString);
@@ -1502,7 +1488,7 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 		dbg("[tcore_SMS] Invalid Data Length");
 		api_err = TCORE_RETURN_SMS_INVALID_DATA_LEN;
 	}
-	
+
 	return api_err;
 
 }
@@ -1537,20 +1523,20 @@ static TReturn get_storedMsgCnt(CoreObject *o, UserRequest *ur)
 	TcorePending *pending = NULL;
 	const struct treq_sms_get_msg_count *getStoredMsgCnt = NULL;
 
-	char *cmd_str = NULL;	
+	char *cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
-	int info_len =0;	
+	int info_len =0;
 
 	dbg("new pending(IPC_SMS_GET_STORED_MSG_COUNT)");
 
 	getStoredMsgCnt = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!h)
 	{
-		dbg("[ERR]  tcore_plugin_ref_hal() pointer is NULL");
+		dbg("[ERR]  tcore_object_get_hal() pointer is NULL");
 		return TCORE_RETURN_ENOSYS;
 	}
 
@@ -1558,11 +1544,11 @@ static TReturn get_storedMsgCnt(CoreObject *o, UserRequest *ur)
 	metainfo.type = SINGLELINE;
 	memcpy(metainfo.responsePrefix,"+CPMS:",strlen("+CPMS:"));
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT+CPMS=<mem1>[,<mem2>[,<mem3>]]
-	// Possible response(s) : +CPMS: <used1>,<total1>,<used2>,<total2>,<used3>,<total3> 
+	// Possible response(s) : +CPMS: <used1>,<total1>,<used2>,<total2>,<used3>,<total3>
 	cmd_str = g_strdup_printf("AT+CPMS=\"SM\"%s", "\r");
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
@@ -1585,7 +1571,7 @@ static TReturn get_sca(CoreObject *o, UserRequest *ur)
 	TcoreHal *h = NULL;
 	TcorePending *pending = NULL;
 	const struct treq_sms_get_sca *getSca = NULL;
-	char *cmd_str = NULL;	
+	char *cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
 
@@ -1594,7 +1580,7 @@ static TReturn get_sca(CoreObject *o, UserRequest *ur)
 	getSca = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!getSca || !h)
 		return TCORE_RETURN_ENOSYS;
@@ -1603,13 +1589,13 @@ static TReturn get_sca(CoreObject *o, UserRequest *ur)
 	metainfo.type = SINGLELINE;
 	memcpy(metainfo.responsePrefix,"+CSCA:",strlen("+CSCA:"));
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT +CSCA?
-	// Possible response(s) : +CSCA: <sca number>,<sca type> 
+	// Possible response(s) : +CSCA: <sca number>,<sca type>
 	cmd_str = g_strdup_printf("AT +CSCA?%s", "\r");
-	
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -1617,7 +1603,7 @@ static TReturn get_sca(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
-	
+
 	free(cmd_str);
 
 	return tcore_hal_send_request(h, pending);
@@ -1645,7 +1631,7 @@ static TReturn set_sca(CoreObject *o, UserRequest *ur)
 	}
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!setSca || !h)
 		return TCORE_RETURN_ENOSYS;
@@ -1658,11 +1644,11 @@ static TReturn set_sca(CoreObject *o, UserRequest *ur)
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
-	// AT +CSCA=<sca number>[,<sca type>] 
-	// 129:Unknown numbering plan, national/international number unknown, 145:international number 
+
+	// AT +CSCA=<sca number>[,<sca type>]
+	// 129:Unknown numbering plan, national/international number unknown, 145:international number
 	cmd_str = g_strdup_printf("AT+CSCA=\"%s\", %d%s", setSca->scaInfo.diallingNum, scaType, "\r");
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
@@ -1672,7 +1658,7 @@ static TReturn set_sca(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
-	
+
 	free(cmd_str);
 
 	return tcore_hal_send_request(h, pending);
@@ -1724,7 +1710,7 @@ static TReturn set_delivery_report(CoreObject *o, UserRequest *ur)
 	deliveryReport = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!deliveryReport || !h)
 		return TCORE_RETURN_ENOSYS;
@@ -1733,9 +1719,9 @@ static TReturn set_delivery_report(CoreObject *o, UserRequest *ur)
 	metainfo.type = NO_RESULT;
 	metainfo.responsePrefix[0] ='\0';
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
+
 	// AT+CNMA
 	if(deliveryReport->rspType == SMS_SENDSMS_SUCCESS)
 		cmd_str = g_strdup_printf("AT+CNMA=0%s", "\r");
@@ -1749,7 +1735,7 @@ static TReturn set_delivery_report(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
-	
+
 	free(cmd_str);
 
 	return tcore_hal_send_request(h, pending);
@@ -1778,7 +1764,7 @@ static TReturn get_sms_params(CoreObject *o, UserRequest *ur)
 	getSmsParams = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!getSmsParams || !h)
 	{
@@ -1790,10 +1776,10 @@ static TReturn get_sms_params(CoreObject *o, UserRequest *ur)
 	metainfo.type = SINGLELINE;
 	memcpy(metainfo.responsePrefix,"+CRSM:",strlen("+CRSM:"));
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
-	// AT+CRSM=<command>,<fildid>,<p1>,<p2+C29,<p3> 
+	// AT+CRSM=<command>,<fildid>,<p1>,<p2+C29,<p3>
 	cmd_str = g_strdup_printf("AT+CRSM=%d, %d, %d, 4, 40%s", 178, 0x6F42, getSmsParams->index + 1, "\r");
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
@@ -1803,9 +1789,9 @@ static TReturn get_sms_params(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
-	
+
 	free(cmd_str);
-	
+
 	return tcore_hal_send_request(h, pending);
 
 }
@@ -1830,7 +1816,7 @@ static TReturn get_paramcnt(CoreObject *o, UserRequest *ur)
 	getParamCnt = tcore_user_request_ref_data(ur, NULL);
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	if (!h) // request data is NULL, so do not NULL check for getParamCnt
 	{
@@ -1842,12 +1828,12 @@ static TReturn get_paramcnt(CoreObject *o, UserRequest *ur)
 	metainfo.type = SINGLELINE;
 	memcpy(metainfo.responsePrefix,"+CRSM:",strlen("+CRSM:"));
 	info_len = sizeof(struct ATReqMetaInfo);
-	
+
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-	
-	// AT+CRSM=<command>,<fildid>,<p1>,<p2+C29,<p3>, EFsmsp: 0x6F42 
+
+	// AT+CRSM=<command>,<fildid>,<p1>,<p2+C29,<p3>, EFsmsp: 0x6F42
 	cmd_str = g_strdup_printf("AT+CRSM=192, %d%s", 0x6F42, "\r");
-	
+
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
 	tcore_pending_set_timeout(pending, 0);
@@ -1855,9 +1841,9 @@ static TReturn get_paramcnt(CoreObject *o, UserRequest *ur)
 	tcore_pending_link_user_request(pending, ur);
 
 	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
-	
+
 	free(cmd_str);
-	
+
 	return tcore_hal_send_request(h, pending);
 }
 
@@ -1883,13 +1869,13 @@ static struct tcore_sms_operations sms_ops =
 	.send_cdma_msg = send_cdma_msg,
 };
 
-gboolean s_sms_init(TcorePlugin *p)
+gboolean s_sms_init(TcorePlugin *p, TcoreHal *h)
 {
 	CoreObject *o;
 	struct property_sms_info *data;
 	GQueue *work_queue;
 
-	o = tcore_sms_new(p, "umts_sms", &sms_ops);
+	o = tcore_sms_new(p, "umts_sms", &sms_ops, h);
 	if (!o)
 		return FALSE;
 

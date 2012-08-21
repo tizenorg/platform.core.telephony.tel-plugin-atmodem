@@ -111,7 +111,7 @@ static void __send_at_request(CoreObject *o, char* atcmd, UserRequest *ur, Tcore
 	TcorePending *pending = NULL;
 
 	plugin = tcore_object_ref_plugin(o);
-	hal = tcore_plugin_ref_hal(plugin);
+	hal = tcore_object_get_hal(o);
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(atcmd), atcmd);
@@ -574,7 +574,7 @@ static void on_response_get_serving_network(TcorePending *pending, int data_len,
 	return;
 }
 
-static void on_event_network_regist(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_network_regist(CoreObject *o, const void *event_info, void *user_data)
 {
 	struct tnoti_network_registration_status regist_status;
 	enum telephony_network_service_domain_status cs_status;
@@ -597,7 +597,7 @@ static void on_event_network_regist(CoreObject *o, const void *event_info, void 
 	else if (strStartsWith(line,"+CGREG:"))
 		svc_domain = NETWORK_SERVICE_DOMAIN_PS;
 	else
-		return;
+		return TRUE;
 
 	dbg("svc_domain = 0x%x", svc_domain);
 
@@ -700,9 +700,11 @@ process:
 			TNOTI_NETWORK_REGISTRATION_STATUS, sizeof(struct tnoti_network_registration_status), &regist_status);
 
 	get_serving_network(o, NULL);
+
+	return TRUE;
 }
 
-static void on_event_network_icon_info(CoreObject *o, const void *event_info, void *user_data)
+static gboolean on_event_network_icon_info(CoreObject *o, const void *event_info, void *user_data)
 {
 	char *line = (char *)event_info;
 	static struct tnoti_network_icon_info net_icon_info = {0xff,0,0,0};
@@ -728,20 +730,24 @@ static void on_event_network_icon_info(CoreObject *o, const void *event_info, vo
 		case CIND_NOTI_RSSI:
 			dbg("CIND_NOTI_RSSI. ind=%d",ind);
 			net_icon_info.rssi = ind;
-		break;
+			break;
 		case CIND_NOTI_BATTERY:
 			dbg("CIND_NOTI_BATTERY. ind=%d",ind);
 			net_icon_info.battery = ind;
-		break;
+			break;
 
 		default:
 			err("This event is not handled val=%d",descr);
-		return;
+			return TRUE;
 	}
+
 	dbg("type=%d, rssi=%d, battery=%d, hdr_rssi=%d",
-		net_icon_info.type, net_icon_info.rssi, net_icon_info.battery, net_icon_info.hdr_rssi);
+			net_icon_info.type, net_icon_info.rssi, net_icon_info.battery, net_icon_info.hdr_rssi);
+
 	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_NETWORK_ICON_INFO,
 			sizeof(struct tnoti_network_icon_info), &net_icon_info);
+
+	return TRUE;
 }
 
 static void on_sim_resp_hook_get_netname(UserRequest *ur, enum tcore_response_command command, unsigned int data_len,
@@ -980,11 +986,11 @@ static struct tcore_network_operations network_ops = {
 	.get_serving_network = get_serving_network,
 };
 
-gboolean s_network_init(TcorePlugin *plugin)
+gboolean s_network_init(TcorePlugin *plugin, TcoreHal *h)
 {
 	CoreObject *o;
 
-	o = tcore_network_new(plugin, "umts_network", &network_ops);
+	o = tcore_network_new(plugin, "umts_network", &network_ops, h);
 	if (!o)
 		return FALSE;
 

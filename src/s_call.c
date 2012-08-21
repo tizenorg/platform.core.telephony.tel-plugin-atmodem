@@ -44,17 +44,12 @@ extern struct ATResponse *sp_response;
 extern char *s_responsePrefix;
 extern enum ATCommandType s_type;
 
-struct call_confirm_info_t {
-	CallObject *co;
-	enum tcore_response_command resp;
-};
-
 struct CLCC_call_t {
 	struct CLCC_call_info_t {
 		int				id;
-		enum tcore_call_direction 	direction;
+		enum tcore_call_direction	direction;
 		enum tcore_call_status		status;
-		enum tcore_call_type 		type;
+		enum tcore_call_type		type;
 		int	mpty;
 		int	num_len;
 		int	num_type;
@@ -63,7 +58,7 @@ struct CLCC_call_t {
 };
 
 
-static gboolean	_call_request_message( CoreObject *o, UserRequest* ur, char* cmd_string, 
+static gboolean	_call_request_message( CoreObject *o, UserRequest* ur, char* cmd_string,
 												unsigned int cmd_length, void* on_resp, void* user_data);
 
 static void		_call_status_idle( TcorePlugin *p, CallObject *co );
@@ -81,18 +76,11 @@ static gboolean _call_is_in_mpty(int mpty);
 static TReturn	_call_list_get( CoreObject *o, CallObject *co );
 
 static void		on_confirmation_call_message_send( TcorePending *p, gboolean result, void *user_data ); // from Kernel
-static void		on_confirmation_call_request( TcorePending *p, int data_len, const void *data, void *user_data ); // from Modem
-static void		on_confirmation_call_hold( TcorePending *p, int data_len, const void *data, void *user_data );
-static void		on_confirmation_call_swap( TcorePending *p, int data_len, const void *data, void *user_data );
-static void		on_confirmation_call_split( TcorePending *p, int data_len, const void *data, void *user_data );
-static void		on_confirmation_call_hold_and_accept( TcorePending *p, int data_len, const void *data, void *user_data );
-static void		on_confirmation_call_endall( TcorePending *p, int data_len, const void *data, void *user_data ); // from Modem
-
 
 static void		on_response_call_list_get(TcorePending *p, int data_len, const void *data, void *user_data);
-static void		on_notification_call_waiting( CoreObject *o, const void *data, void *user_data );
-static void		on_notification_call_incoming( CoreObject *o, const void *data, void *user_data );
-static void		on_notification_call_status( CoreObject *o, const void *data, void *user_data);
+static gboolean on_notification_call_waiting( CoreObject *o, const void *data, void *user_data );
+static gboolean on_notification_call_incoming( CoreObject *o, const void *data, void *user_data );
+static gboolean on_notification_call_status( CoreObject *o, const void *data, void *user_data);
 
 
 static int _callFromCLCCLine(char *line, struct CLCC_call_t *p_call);
@@ -129,8 +117,8 @@ static enum tcore_call_status _call_status(unsigned int status)
 		case 5:
 			return TCORE_CALL_STATUS_WAITING;
 		case 6:
-			return TCORE_CALL_STATUS_DIALING; //connecting not exist. set to dialing 
-	case 7: 
+			return TCORE_CALL_STATUS_DIALING; //connecting not exist. set to dialing
+	case 7:
 			return TCORE_CALL_STATUS_IDLE;
 
 		default:
@@ -186,7 +174,7 @@ static gboolean _call_request_message(	CoreObject *o,
 	info_len = sizeof(struct ATReqMetaInfo);
 
 	dbg("_call_request_message - cmd : %s, cmdlen :%d (including '\r')",cmd_string, cmd_len);
-	
+
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, cmd_len, cmd_string);
@@ -205,14 +193,14 @@ static gboolean _call_request_message(	CoreObject *o,
 	}
 
 	p = tcore_object_ref_plugin(o);
-	h = tcore_plugin_ref_hal(p);
+	h = tcore_object_get_hal(o);
 
 	tcore_hal_send_request(h, pending);
 
 	return TRUE;
 }
 
-static void _call_status_idle( TcorePlugin *p, CallObject *co ) 
+static void _call_status_idle( TcorePlugin *p, CallObject *co )
 {
 	struct tnoti_call_status_idle data;
 
@@ -233,7 +221,7 @@ static void _call_status_idle( TcorePlugin *p, CallObject *co )
 
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_IDLE );
 
-		tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+		tcore_server_send_notification(	tcore_plugin_ref_server(p),
 									o,
 									TNOTI_CALL_STATUS_IDLE,
 									sizeof(struct tnoti_call_status_idle),
@@ -264,7 +252,7 @@ static void _call_status_dialing( TcorePlugin *p, CallObject *co )
 
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_DIALING );
 
-		tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+		tcore_server_send_notification(	tcore_plugin_ref_server(p),
 									tcore_plugin_ref_core_object(p, "call"),
 									TNOTI_CALL_STATUS_DIALING,
 									sizeof(struct tnoti_call_status_dialing),
@@ -294,7 +282,7 @@ static void _call_status_alert( TcorePlugin *p, CallObject *co )
 
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ALERT );
 
-		tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+		tcore_server_send_notification(	tcore_plugin_ref_server(p),
 									tcore_plugin_ref_core_object(p, "call"),
 									TNOTI_CALL_STATUS_ALERT,
 									sizeof(struct tnoti_call_status_alert),
@@ -321,7 +309,7 @@ static void _call_status_active( TcorePlugin *p, CallObject *co )
 
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
 
-		tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+		tcore_server_send_notification(	tcore_plugin_ref_server(p),
 									tcore_plugin_ref_core_object(p, "call"),
 									TNOTI_CALL_STATUS_ACTIVE,
 									sizeof(struct tnoti_call_status_active),
@@ -344,7 +332,7 @@ static void _call_status_held( TcorePlugin *p, CallObject *co )
 
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
 
-		tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+		tcore_server_send_notification(	tcore_plugin_ref_server(p),
 									tcore_plugin_ref_core_object(p, "call"),
 									TNOTI_CALL_STATUS_HELD,
 									sizeof(struct tnoti_call_status_held),
@@ -385,7 +373,7 @@ static void _call_status_incoming( TcorePlugin *p, CallObject *co )
 		data.active_line = tcore_call_object_get_active_line( co );
 		dbg("data.active_line : [%d]", data.active_line );
 
-		tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+		tcore_server_send_notification(	tcore_plugin_ref_server(p),
 				tcore_plugin_ref_core_object(p, "call"),
 				TNOTI_CALL_STATUS_INCOMING,
 				sizeof(struct tnoti_call_status_incoming),
@@ -440,11 +428,11 @@ static void _call_branch_by_status( TcorePlugin *p, CallObject *co, unsigned int
 static TReturn _call_list_get( CoreObject *o, CallObject *co )
 {
 	gboolean ret = FALSE;
-	UserRequest* 	ur = NULL;
+	UserRequest* ur = NULL;
 
-	char*	cmd_str = NULL;		
+	char*	cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
-	int info_len =0;	
+	int info_len =0;
 
 	if ( !o )
 		return TCORE_RETURN_FAILURE;
@@ -460,8 +448,8 @@ static TReturn _call_list_get( CoreObject *o, CallObject *co )
 
 	cmd_str = g_strdup("AT+CLCC\r");
 
-	ret = _call_request_message ( o, ur, cmd_str, strlen(cmd_str), on_response_call_list_get, NULL); 
-	
+	ret = _call_request_message ( o, ur, cmd_str, strlen(cmd_str), on_response_call_list_get, NULL);
+
 	if ( !ret )
 		return TCORE_RETURN_FAILURE;
 
@@ -489,11 +477,11 @@ static void on_confirmation_call_message_send( TcorePending *p, gboolean result,
 	metainfo = (struct ATReqMetaInfo*)tcore_user_request_ref_metainfo(ur,&info_len);
 
 	if((metainfo->type == SINGLELINE)||
-		(metainfo->type == MULTILINE))
+			(metainfo->type == MULTILINE))
 	{
-		//cp rsp prefix	
+		//cp rsp prefix
 		s_responsePrefix = strdup(metainfo->responsePrefix);
-    		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);	
+		dbg("duplicating responsePrefix : %s\n", s_responsePrefix);
 	}
 	else
 	{
@@ -501,7 +489,7 @@ static void on_confirmation_call_message_send( TcorePending *p, gboolean result,
 	}
 
 //set atcmd type into s_type
-	s_type = metainfo->type;	
+	s_type = metainfo->type;
 
 	if (result == FALSE) {
 		/* Fail */
@@ -512,275 +500,116 @@ static void on_confirmation_call_message_send( TcorePending *p, gboolean result,
 	}
 }
 
-static void _confirmation_call( CoreObject *o, UserRequest *ur, TReturn err, struct call_confirm_info_t *ci )
+static void on_confirmation_call_outgoing( TcorePending *p, int data_len, const void *data, void *user_data )
 {
-	struct tresp_call_general resp;
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
 
-	if ( !ci->co )
-		dbg("call object is NULL, is it general requst??");
-
-	resp.type =  (enum telephony_call_type )tcore_call_object_get_type( ci->co );
-	resp.id	 =  tcore_call_object_get_id( ci->co );
-	resp.err = err;
-
-	if (ur) {
-		tcore_user_request_send_response(ur, ci->resp, sizeof(struct tresp_call_general), &resp);
-
-	} else {
-		dbg("[ error ] ur is NULL");
-		return ;
-	}
-
-	dbg("resp.err : [ 0x%x ]", resp.err);
-
-#if 0
-		_call_list_get( o, ci->co );
-#endif
-
-}
-
-
-static void on_confirmation_call_request( TcorePending *p, int data_len, const void *data, void *user_data )
-{
-	CoreObject*		o = 0;
-	UserRequest*	ur = 0;
-	TReturn err = TCORE_RETURN_SUCCESS;
-
-	struct call_confirm_info_t* ci = 0;
+	struct tresp_call_dial resp;
 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
-
-
-	ci  = (struct call_confirm_info_t *)user_data;
-	if ( !ci ) {
-		dbg("[ error ] user_data is NULL");
-		return ;
-	}
 
 	if(sp_response->success >0)
-		err = TCORE_RETURN_SUCCESS;		
+		resp.err = TCORE_RETURN_SUCCESS;
 	else
-		err = TCORE_RETURN_FAILURE;
+		resp.err = TCORE_RETURN_FAILURE;
 
 	ReleaseResponse();
 
-	_confirmation_call( o, ur, err, ci );
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_DIAL, sizeof(struct tresp_call_dial), &resp);
 
-	g_free( ci );
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
 }
 
-static void on_confirmation_call_split( TcorePending *p, int data_len, const void *data, void *user_data )
+static void on_confirmation_call_accept( TcorePending *p, int data_len, const void *data, void *user_data )
 {
-	CoreObject*		o = 0;
-	UserRequest*	ur = 0;
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
 
-	struct tresp_call_general resp;
-	struct call_confirm_info_t *ci = 0;
-
-	dbg("ok, function entrance");
-	printResponse();
+	struct tresp_call_answer resp;
 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	ci  = (struct call_confirm_info_t *)user_data;
-	if ( !ci ) {
-		dbg("[ error ] user_data is NULL");
-		goto out;
-	}
-
-	resp.type =  (enum telephony_call_type )tcore_call_object_get_type( ci->co );
-	resp.id	  =  tcore_call_object_get_id( ci->co );
-	if(sp_response->success >0){
-		resp.err = FALSE;
-	}else{
-		resp.err = TRUE;
-	}
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
 
 	ReleaseResponse();
 
-	if ( ur ) {
-		tcore_user_request_send_response(ur, ci->resp, sizeof(struct tresp_call_general), &resp);
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_ANSWER, sizeof(struct tresp_call_answer), &resp);
 
 	} else {
 		dbg("[ error ] ur is NULL");
-		goto out;
+		return ;
 	}
-
-	if ( !resp.err ) {
-
-		GSList *active = 0;
-		CallObject *co = 0;
-
-		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
-		if ( !active ) {
-			dbg("[ error ] can't find active call");
-			goto out;
-		}
-
-		co = (CallObject*)active->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			goto out;
-		}
-
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
-		tcore_call_object_set_status( ci->co, TCORE_CALL_STATUS_ACTIVE );
-	}
-
-out:
-	g_free( ci );
-
 }
 
 
-static void on_confirmation_call_hold( TcorePending *p, int data_len, const void *data, void *user_data )
+static void on_confirmation_call_reject( TcorePending *p, int data_len, const void *data, void *user_data )
 {
-	CoreObject*		o = 0;
-	UserRequest*	ur = 0;
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
 
-	struct tresp_call_general resp;
-	struct call_confirm_info_t *ci = 0;
-
-	dbg("ok, function entrance");
-	printResponse();
+	struct tresp_call_answer resp;
 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	ci  = (struct call_confirm_info_t *)user_data;
-	if ( !ci ) {
-		dbg("[ error ] user_data is NULL");
-		goto out;
-	}
-
-	resp.type =  (enum telephony_call_type )tcore_call_object_get_type( ci->co );
-	resp.id	  =  tcore_call_object_get_id( ci->co );
-	
-	if(sp_response->success >0){
-		resp.err = FALSE;
-	}else{
-		resp.err = TRUE;
-	}
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
 
 	ReleaseResponse();
 
-	
-	if ( ur ) {
-		tcore_user_request_send_response(ur, ci->resp, sizeof(struct tresp_call_general), &resp);
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_ANSWER, sizeof(struct tresp_call_answer), &resp);
 
 	} else {
 		dbg("[ error ] ur is NULL");
-		goto out;
+		return ;
 	}
-
-	if ( !resp.err ) {
-
-		GSList *active = 0;
-		CallObject *co = 0;
-
-		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
-		if ( !active ) {
-			dbg("[ error ] can't find active call");
-			goto out;
-		}
-
-		co = (CallObject*)active->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			goto out;
-		}
-
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
-	}
-
-out:
-	g_free( ci );
-
 }
 
-static void on_confirmation_call_swap( TcorePending *p, int data_len, const void *data, void *user_data )
+static void on_confirmation_call_replace( TcorePending *p, int data_len, const void *data, void *user_data )
 {
-	CoreObject*		o = 0;
-	UserRequest*	ur = 0;
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
 
-	struct tresp_call_general resp;
-	struct call_confirm_info_t *ci = 0;
-
-	dbg("ok, function entrance");
-	printResponse();
+	struct tresp_call_answer resp;
 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	ci  = (struct call_confirm_info_t *)user_data;
-	if ( !ci ) {
-		dbg("[ error ] user_data is NULL");
-		goto out;
-	}
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
 
-
-	resp.type =  (enum telephony_call_type )tcore_call_object_get_type( ci->co );
-	resp.id	  =  tcore_call_object_get_id( ci->co );
-	if(sp_response->success >0){
-		resp.err = FALSE;
-	}else{
-		resp.err = TRUE;
-	}
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
 
 	ReleaseResponse();
 
-	if ( ur ) {
-		tcore_user_request_send_response(ur, ci->resp, sizeof(struct tresp_call_general), &resp);
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_ANSWER, sizeof(struct tresp_call_answer), &resp);
 
 	} else {
 		dbg("[ error ] ur is NULL");
-		goto out;
+		return ;
 	}
-
-	if ( !resp.err ) {
-
-		GSList *active = 0, *held = 0;
-		CallObject *co = 0;
-
-		held = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_HELD );
-		if ( !held ) {
-			dbg("[ error ] can't find held call");
-			goto out;
-		}
-
-		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
-		if ( !active ) {
-			dbg("[ error ] can't find active call");
-			goto out;
-		}
-
-		co = (CallObject*)held->data;
-		if ( !co ) {
-			dbg("[ error ] can't get held call object");
-			goto out;
-		}
-
-		resp.id	 =  tcore_call_object_get_id( co );
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
-
-		tcore_user_request_send_response(ur, TRESP_CALL_ACTIVE, sizeof(struct tresp_call_general), &resp);
-
-		co = (CallObject*)active->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			goto out;
-		}
-
-		resp.id	 =  tcore_call_object_get_id( co );
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
-
-		tcore_user_request_send_response(ur, TRESP_CALL_HOLD, sizeof(struct tresp_call_general), &resp);
-	}
-
-out:
-	g_free( ci );
 }
 
 static void on_confirmation_call_hold_and_accept( TcorePending *p, int data_len, const void *data, void *user_data )
@@ -788,39 +617,29 @@ static void on_confirmation_call_hold_and_accept( TcorePending *p, int data_len,
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0;
 
-	struct tresp_call_general resp;
-	struct call_confirm_info_t *ci = 0;
+	struct tresp_call_answer resp;
 
 	dbg("ok, function entrance");
-	printResponse();
 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
 
-	ci  = (struct call_confirm_info_t *)user_data;
-	if ( !ci ) {
-		dbg("[ error ] user_data is NULL");
-		goto out;
-	}
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
 
-
-	resp.type =  (enum telephony_call_type )tcore_call_object_get_type( ci->co );
-	resp.id	  =  tcore_call_object_get_id( ci->co );
-	
-	if(sp_response->success >0){
-		resp.err = FALSE;
-	}else{
-		resp.err = TRUE;
-	}
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
 
 	ReleaseResponse();
-	
+
+
 	if ( ur ) {
-		tcore_user_request_send_response(ur, ci->resp, sizeof(struct tresp_call_general), &resp);
+		tcore_user_request_send_response(ur, TRESP_CALL_ANSWER, sizeof(struct tresp_call_answer), &resp);
 
 	} else {
 		dbg("[ error ] ur is NULL");
-		goto out;
+		return ;
 	}
 
 	if ( !resp.err ) {
@@ -831,30 +650,430 @@ static void on_confirmation_call_hold_and_accept( TcorePending *p, int data_len,
 		l = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
 		if ( !l ) {
 			dbg("[ error ] can't find active call");
-			goto out;
+			return ;
 		}
 
 		co = (CallObject*)l->data;
 		if ( !co ) {
 			dbg("[ error ] can't get active call object");
-			goto out;
+			return ;
+		}
+
+		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+	}
+}
+
+static void on_confirmation_call_release_all( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_end resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+
+	resp.type = CALL_END_TYPE_ALL;
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_END, sizeof(struct tresp_call_end), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+
+
+static void on_confirmation_call_release_specific( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_end resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.type = CALL_END_TYPE_DEFAULT;
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_END, sizeof(struct tresp_call_end), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+static void on_confirmation_call_release_all_active( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_end resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.type = CALL_END_TYPE_ACTIVE_ALL;
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_END, sizeof(struct tresp_call_end), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+static void on_confirmation_call_release_all_held( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_end resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.type = CALL_END_TYPE_HOLD_ALL;
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_END, sizeof(struct tresp_call_end), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+static void on_confirmation_call_hold( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject*		o = 0;
+	UserRequest*	ur = 0;
+
+	struct tresp_call_hold resp;
+
+	dbg("ok, function entrance");
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if ( ur ) {
+		tcore_user_request_send_response(ur, TRESP_CALL_HOLD, sizeof(struct tresp_call_hold), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+
+	if ( !resp.err ) {
+
+		GSList *active = 0;
+		CallObject *co = 0;
+
+		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
+		if ( !active ) {
+			dbg("[ error ] can't find active call");
+			return ;
+		}
+
+		co = (CallObject*)active->data;
+		if ( !co ) {
+			dbg("[ error ] can't get active call object");
+			return ;
 		}
 
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
 	}
 
-out:
-	g_free( ci );
 }
 
-// RESPONSE 
+static void on_confirmation_call_active( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_active resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_ACTIVE, sizeof(struct tresp_call_active), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+
+}
+
+static void on_confirmation_call_swap( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject*		o = 0;
+	UserRequest*	ur = 0;
+
+	struct tresp_call_swap resp;
+
+	dbg("ok, function entrance");
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if ( ur ) {
+		tcore_user_request_send_response(ur, TRESP_CALL_SWAP, sizeof(struct tresp_call_swap), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+
+	if ( !resp.err ) {
+
+		GSList *active = 0, *held = 0;
+		CallObject *co = 0;
+
+		held = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_HELD );
+		if ( !held ) {
+			dbg("[ error ] can't find held call");
+			return ;
+		}
+
+		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
+		if ( !active ) {
+			dbg("[ error ] can't find active call");
+			return ;
+		}
+
+		co = (CallObject*)held->data;
+		if ( !co ) {
+			dbg("[ error ] can't get held call object");
+			return ;
+		}
+
+		resp.id	 =  tcore_call_object_get_id( co );
+		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
+
+		tcore_user_request_send_response(ur, TRESP_CALL_ACTIVE, sizeof(struct tresp_call_active), &resp);
+
+		co = (CallObject*)active->data;
+		if ( !co ) {
+			dbg("[ error ] can't get active call object");
+			return ;
+		}
+
+		resp.id	 =  tcore_call_object_get_id( co );
+		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+
+		tcore_user_request_send_response(ur, TRESP_CALL_HOLD, sizeof(struct tresp_call_hold), &resp);
+	}
+}
+
+static void on_confirmation_call_join( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_join resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_JOIN, sizeof(struct tresp_call_join), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+static void on_confirmation_call_split( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject*		o = 0;
+	UserRequest*	ur = 0;
+
+
+	struct tresp_call_split resp;
+
+	dbg("ok, function entrance");
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if ( ur ) {
+		tcore_user_request_send_response(ur, TRESP_CALL_SPLIT, sizeof(struct tresp_call_split), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+
+	if ( !resp.err ) {
+
+		GSList *active = 0;
+		CallObject *co = 0;
+
+		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
+		if ( !active ) {
+			dbg("[ error ] can't find active call");
+			return ;
+		}
+
+		co = (CallObject*)active->data;
+		if ( !co ) {
+			dbg("[ error ] can't get active call object");
+			return ;
+		}
+
+		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+		tcore_call_object_set_status( (CallObject*)user_data, TCORE_CALL_STATUS_ACTIVE );
+	}
+}
+
+static void on_confirmation_call_deflect( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_deflect resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_DEFLECT, sizeof(struct tresp_call_deflect), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+static void on_confirmation_call_transfer( TcorePending *p, int data_len, const void *data, void *user_data )
+{
+	CoreObject *o = 0;
+	UserRequest *ur = 0;
+
+	struct tresp_call_transfer resp;
+
+	o  = tcore_pending_ref_core_object(p);
+	ur = tcore_pending_ref_user_request(p);
+
+	resp.id	  =  tcore_call_object_get_id( (CallObject*)user_data );
+
+	if(sp_response->success >0)
+		resp.err = TCORE_RETURN_SUCCESS;
+	else
+		resp.err = TCORE_RETURN_FAILURE;
+
+	ReleaseResponse();
+
+	if (ur) {
+		tcore_user_request_send_response(ur, TRESP_CALL_TRANSFER, sizeof(struct tresp_call_transfer), &resp);
+
+	} else {
+		dbg("[ error ] ur is NULL");
+		return ;
+	}
+}
+
+// RESPONSE
 static void on_confirmation_call_endall( TcorePending *p, int data_len, const void *data, void *user_data )
 {
 	CoreObject*		o = 0;
 	UserRequest*	ur = 0;
-	//TReturn err = TCORE_RETURN_SUCCESS;
-	struct call_confirm_info_t* ci = 0;
-	
+
 	dbg("on_confirmation_call_endall - 1st result. wait for final result");
 
 
@@ -863,28 +1082,22 @@ static void on_confirmation_call_endall( TcorePending *p, int data_len, const vo
 
 //skip response handling - actual result will be handled in on_confirmation_call_request
 	ReleaseResponse();
-
-	ci  = (struct call_confirm_info_t *)user_data;
-	if ( !ci ) {
-		dbg("[ error ] user_data is NULL");
-		return ;
-	}
 }
 
-// RESPONSE 
+// RESPONSE
 
 static void on_response_call_list_get(TcorePending *p, int data_len, const void *data, void *user_data)
 {
 	TcorePlugin* plugin = 0;
 	CoreObject*	o = 0;
 	CallObject*	co = 0;
-    	struct ATLine *p_cur;
+	struct ATLine *p_cur;
 
 	char* cmd= 0;
-	struct CLCC_call_t*		call_list = 0;
+	struct CLCC_call_t*	call_list = 0;
 
 	int i = 0, countCalls =0, countValidCalls =0, err =0;
-	
+
 
 	plugin	= tcore_pending_ref_plugin( p );
 	o		= tcore_pending_ref_core_object( p );
@@ -895,31 +1108,31 @@ static void on_response_call_list_get(TcorePending *p, int data_len, const void 
 	if(sp_response->success > 0)
 	{
 
-	    /* count the calls */
-	    for (countCalls = 0, p_cur = sp_response->p_intermediates
-	            ; p_cur != NULL
-	            ; p_cur = p_cur->p_next
-	    ) {
-	        countCalls++;
-	    }
-	   dbg("total calls : %d",countCalls);
+		/* count the calls */
+		for (countCalls = 0, p_cur = sp_response->p_intermediates
+				; p_cur != NULL
+				; p_cur = p_cur->p_next
+			) {
+			countCalls++;
+		}
+		dbg("total calls : %d",countCalls);
 
-	   if(countCalls ==0)
-	   	return;
+		if(countCalls ==0)
+			return;
 
 		call_list	= g_new0( struct CLCC_call_t, countCalls);
-		
+
 
 		for (countValidCalls = 0, p_cur = sp_response->p_intermediates
-            		; p_cur != NULL
-            		; p_cur = p_cur->p_next) 
-        	{
+				; p_cur != NULL
+				; p_cur = p_cur->p_next)
+		{
 
 			err = _callFromCLCCLine( p_cur->line, call_list + countValidCalls );
 
-		        if (err != 0) {
-		            continue;
-		        }
+			if (err != 0) {
+				continue;
+			}
 
 			co = tcore_call_object_find_by_id( o, call_list[i].info.id );
 			if ( !co ) {
@@ -950,97 +1163,97 @@ static int _callFromCLCCLine(char *line, struct CLCC_call_t*p_call)
 
     int err;
     int state;
-    int mode;
-    int isMT;
-    char* num;
+	int mode;
+	int isMT;
+	char* num;
 
-    err = at_tok_start(&line);
-    if (err < 0) goto error;
+	err = at_tok_start(&line);
+	if (err < 0) goto error;
 
-//id
-    err = at_tok_nextint(&line, &(p_call->info.id));
-    if (err < 0) goto error;
-    dbg("id : [%d]\n", p_call->info.id );
-//MO/MTcall
-    err = at_tok_nextint(&line, &isMT);
-    if (err < 0) goto error;
+	//id
+	err = at_tok_nextint(&line, &(p_call->info.id));
+	if (err < 0) goto error;
+	dbg("id : [%d]\n", p_call->info.id );
+	//MO/MTcall
+	err = at_tok_nextint(&line, &isMT);
+	if (err < 0) goto error;
 
-   if(isMT ==0)
-   	p_call->info.direction = TCORE_CALL_DIRECTION_OUTGOING;
-   else
-   	p_call->info.direction = TCORE_CALL_DIRECTION_INCOMING;
-   	
+	if(isMT ==0)
+		p_call->info.direction = TCORE_CALL_DIRECTION_OUTGOING;
+	else
+		p_call->info.direction = TCORE_CALL_DIRECTION_INCOMING;
+
 	dbg("direction : [ %d ]\n", p_call->info.direction);
 
-//state
-    err = at_tok_nextint(&line, &state);
-    if (err < 0) goto error;
+	//state
+	err = at_tok_nextint(&line, &state);
+	if (err < 0) goto error;
 
-    switch(state){
-	case 0: //active
-		p_call->info.status = TCORE_CALL_STATUS_ACTIVE;
-	break;
-	case 1:
-		p_call->info.status = TCORE_CALL_STATUS_HELD;
-	break;
-	case 2:
-		p_call->info.status = TCORE_CALL_STATUS_DIALING;
-	break;
-	case 3:
-		p_call->info.status = TCORE_CALL_STATUS_ALERT;
-	break;
-	case 4:
-		p_call->info.status = TCORE_CALL_STATUS_INCOMING;
-	break;
-	case 5:
-		p_call->info.status = TCORE_CALL_STATUS_WAITING;
-	break;
-    }
+	switch(state){
+		case 0: //active
+			p_call->info.status = TCORE_CALL_STATUS_ACTIVE;
+			break;
+		case 1:
+			p_call->info.status = TCORE_CALL_STATUS_HELD;
+			break;
+		case 2:
+			p_call->info.status = TCORE_CALL_STATUS_DIALING;
+			break;
+		case 3:
+			p_call->info.status = TCORE_CALL_STATUS_ALERT;
+			break;
+		case 4:
+			p_call->info.status = TCORE_CALL_STATUS_INCOMING;
+			break;
+		case 5:
+			p_call->info.status = TCORE_CALL_STATUS_WAITING;
+			break;
+	}
 	dbg("status	: [%d]\n", p_call->info.status );
-	
-//mode		
-    err = at_tok_nextint(&line, &mode);
-    if (err < 0) goto error;
-	
-   switch(mode)
-  {
-	case 0:
-		p_call->info.type	= TCORE_CALL_TYPE_VOICE;
-	break;
 
-	case 1:
-		p_call->info.type	= TCORE_CALL_TYPE_VIDEO;
-	break;
+	//mode
+	err = at_tok_nextint(&line, &mode);
+	if (err < 0) goto error;
 
-	default:	// only Voice/VT call is supported in CS. treat other unknown calls as error
-		dbg("invalid type : [%d]\n", mode );
-		goto error;
-	break;
-   }
+	switch(mode)
+	{
+		case 0:
+			p_call->info.type	= TCORE_CALL_TYPE_VOICE;
+			break;
+
+		case 1:
+			p_call->info.type	= TCORE_CALL_TYPE_VIDEO;
+			break;
+
+		default:	// only Voice/VT call is supported in CS. treat other unknown calls as error
+			dbg("invalid type : [%d]\n", mode );
+			goto error;
+			break;
+	}
 	dbg("type : [%d]\n", p_call->info.type );
 
-   
-    err = at_tok_nextint(&line, &(p_call->info.mpty));
+
+	err = at_tok_nextint(&line, &(p_call->info.mpty));
     if (err < 0) goto error;
-	dbg("mpty	: [%d]\n", p_call->info.mpty );	
+	dbg("mpty	: [%d]\n", p_call->info.mpty );
 
-    if (at_tok_hasmore(&line)) {
-        err = at_tok_nextstr(&line, &num);
+	if (at_tok_hasmore(&line)) {
+		err = at_tok_nextstr(&line, &num);
 
-        /* tolerate null here */
-        if (err < 0) return 0;
+		/* tolerate null here */
+		if (err < 0) return 0;
 
-	memcpy(p_call->number, num, strlen(num));
-	dbg("number	: [ %s ]\n", p_call->number );
+		memcpy(p_call->number, num, strlen(num));
+		dbg("number	: [ %s ]\n", p_call->number );
 
-	p_call->info.num_len = strlen(num);	
-	dbg("num_len : [0x%x]\n", p_call->info.num_len );
+		p_call->info.num_len = strlen(num);
+		dbg("num_len : [0x%x]\n", p_call->info.num_len );
 
-        err = at_tok_nextint(&line, &(p_call->info.num_type));
-        if (err < 0) goto error;
-	dbg("num_type : [0x%x]\n", p_call->info.num_type );
-	
-    }
+		err = at_tok_nextint(&line, &(p_call->info.num_type));
+		if (err < 0) goto error;
+		dbg("num_type : [0x%x]\n", p_call->info.num_type );
+
+	}
 
     return 0;
 
@@ -1051,16 +1264,16 @@ error:
 
 // NOTIFICATION
 
-static void on_notification_call_waiting( CoreObject *o, const void *data, void *user_data )
+static gboolean on_notification_call_waiting( CoreObject *o, const void *data, void *user_data )
 {
 	TcorePlugin* plugin = NULL;
 	char* cmd = NULL, *num = NULL;
 	CallObject *co, *dupco = 0;
-	int id, status, err, type, mpty,direction; 
+	int id, status, err, type, mpty,direction;
 	GSList* pList = NULL;
 #define LINE_DEFAULT 0
 
-	dbg("call waiting noti : %s", cmd);	
+	dbg("call waiting noti : %s", cmd);
 	plugin = tcore_object_ref_plugin(o);
 
 	cmd = (char*)data;
@@ -1078,33 +1291,33 @@ static void on_notification_call_waiting( CoreObject *o, const void *data, void 
 		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : %s", id,direction,status, type, mpty, num);
 	}
 	else	{
-		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : NULL", id,direction,status, type, mpty);	
+		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : NULL", id,direction,status, type, mpty);
 	}
 // check call with incoming status already exist
 	pList = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_WAITING);
 	if(pList != NULL){
 		dbg("waiting call already exist. skip");
-		return;
+		return TRUE;
 	}
 
 	pList = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_INCOMING);
 	if(pList != NULL){
 		dbg("incoming call already exist. skip");
-		return;
+		return TRUE;
 	}
 
 	dupco = tcore_call_object_find_by_id(o, id);
 	if(dupco!= NULL){
 		dbg("co with same id already exist. skip");
-		return;
+		return TRUE;
 	}
 
 // make new co, add to list
 	co = tcore_call_object_new( o, id);
-			if ( !co ) {
-				dbg("[ error ] co is NULL");
-				return ;
-			}
+	if ( !co ) {
+		dbg("[ error ] co is NULL");
+		return TRUE;
+	}
 
 	tcore_call_object_set_type(co, _call_type(type));
 	tcore_call_object_set_multiparty_state(co,_call_is_in_mpty(mpty));
@@ -1113,18 +1326,20 @@ static void on_notification_call_waiting( CoreObject *o, const void *data, void 
 	tcore_call_object_set_active_line(co, LINE_DEFAULT);
 
 	_call_list_get( o, co );
+
+	return TRUE;
 }
 
-static void on_notification_call_incoming( CoreObject *o, const void *data, void *user_data )
+static gboolean on_notification_call_incoming( CoreObject *o, const void *data, void *user_data )
 {
 	TcorePlugin* plugin = NULL;
 	char* cmd = NULL, *num = NULL;
 	CallObject *co, *dupco = 0;
-	int id, status, err, type, mpty,direction; 
+	int id, status, err, type, mpty,direction;
 	GSList* pList = NULL;
 #define LINE_DEFAULT 0
 
-	dbg("call incoming noti : %s", cmd);	
+	dbg("call incoming noti : %s", cmd);
 	plugin = tcore_object_ref_plugin(o);
 
 	cmd = (char*)data;
@@ -1142,27 +1357,27 @@ static void on_notification_call_incoming( CoreObject *o, const void *data, void
 		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : %s", id,direction,status, type, mpty, num);
 	}
 	else	{
-		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : NULL", id,direction,status, type, mpty);	
+		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : NULL", id,direction,status, type, mpty);
 	}
 // check call with incoming status already exist
 	pList = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_INCOMING);
 	if(pList != NULL){
 		dbg("incoming call already exist. skip");
-		return;
+		return TRUE;
 	}
 
 	dupco = tcore_call_object_find_by_id(o, id);
 	if(dupco!= NULL){
 		dbg("co with same id already exist. skip");
-		return;
+		return TRUE;
 	}
 
 // make new co, add to list
 	co = tcore_call_object_new( o, id);
-			if ( !co ) {
-				dbg("[ error ] co is NULL");
-				return ;
-			}
+	if ( !co ) {
+		dbg("[ error ] co is NULL");
+		return TRUE;
+	}
 
 	tcore_call_object_set_type(co, _call_type(type));
 	tcore_call_object_set_multiparty_state(co,_call_is_in_mpty(mpty));
@@ -1172,9 +1387,10 @@ static void on_notification_call_incoming( CoreObject *o, const void *data, void
 
 	_call_list_get( o, co );
 
+	return TRUE;
 }
 
-static void on_notification_call_status( CoreObject *o, const void *data, void *user_data)
+static gboolean on_notification_call_status( CoreObject *o, const void *data, void *user_data)
 {
 	char* cmd = NULL, *num = NULL;
 	TcorePlugin*	p  = 0;
@@ -1184,7 +1400,7 @@ static void on_notification_call_status( CoreObject *o, const void *data, void *
 
 	enum tcore_call_status co_status;
 
-			p	= tcore_object_ref_plugin( o );
+	p	= tcore_object_ref_plugin( o );
 	cmd = (char*)data;
 
 	at_tok_start(&cmd);
@@ -1195,12 +1411,12 @@ static void on_notification_call_status( CoreObject *o, const void *data, void *
 	err = at_tok_nextint(&cmd,&type);
 	err = at_tok_nextint(&cmd,&mpty);
 
-	if(at_tok_hasmore(&cmd))	{
+	if (at_tok_hasmore(&cmd)) {
 		err = at_tok_nextstr(&cmd,&num);
 		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : %s", id,direction,status, type, mpty, num);
 	}
-	else	{
-		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : NULL", id,direction,status, type, mpty);	
+	else {
+		dbg("id: %d, direction : %d, status : %d, type :%d, mpty : %d, num : NULL", id,direction,status, type, mpty);
 	}
 
 	co_status = _call_status(status);
@@ -1212,7 +1428,7 @@ static void on_notification_call_status( CoreObject *o, const void *data, void *
 		co	= tcore_call_object_find_by_id(o,id);
 		if ( !co ) {
 			dbg("co is NULL");
-			return ;
+			return TRUE;
 		}
 		_call_status_active( p, co );
 
@@ -1222,12 +1438,12 @@ static void on_notification_call_status( CoreObject *o, const void *data, void *
 		case CALL_STATUS_DIALING:
 		{
 		dbg("call(%d) status : [ dialing ]", id);
-		co	= tcore_call_object_find_by_id(o,id);		
+		co	= tcore_call_object_find_by_id(o,id);
 		if ( !co ) {
 			co = tcore_call_object_new( o, id );
 			if ( !co ) {
 				dbg("error : tcore_call_object_new [ id : %d ]", id);
-				return ;
+				return TRUE;
 			}
 		}
 
@@ -1241,10 +1457,10 @@ static void on_notification_call_status( CoreObject *o, const void *data, void *
 		{
 
 		dbg("call(%d) status : [ alert ]", id);
-		co	= tcore_call_object_find_by_id(o, id);	
+		co	= tcore_call_object_find_by_id(o, id);
 		if ( !co ) {
 			dbg("co is NULL");
-			return ;
+			return TRUE;
 		}
 
 		_call_list_get( o, co );
@@ -1271,7 +1487,9 @@ static void on_notification_call_status( CoreObject *o, const void *data, void *
 
 		default:
 			break;
-		}
+	}
+
+	return TRUE;
 }
 
 static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur )
@@ -1282,7 +1500,6 @@ static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur )
 	char*						raw_str= NULL;
 	char*						cmd_str = NULL;
     const char *cclir;
-	struct call_confirm_info_t* ci = 0;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
 	enum tcore_call_cli_mode clir = CALL_CLI_MODE_DEFAULT;
@@ -1291,21 +1508,17 @@ static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur )
 
 	data	= (struct treq_call_dial*)tcore_user_request_ref_data( ur, 0 );
 	p		= tcore_object_ref_plugin( o );
- 
-	ci = g_new0( struct call_confirm_info_t, 1 );
-	ci->co = NULL;
-	ci->resp = TRESP_CALL_DIAL;
 
 	clir = _get_clir_status( data->number );
 
-//Compose ATCmd string 
-	switch (clir) 
+//Compose ATCmd string
+	switch (clir)
 	{
-		case TCORE_CALL_CLI_MODE_PRESENT: 
+		case TCORE_CALL_CLI_MODE_PRESENT:
 			cclir = "I";
 		break;  /*invocation*/
-		case TCORE_CALL_CLI_MODE_RESTRICT: 
-			cclir = "i"; 
+		case TCORE_CALL_CLI_MODE_RESTRICT:
+			cclir = "i";
 		break;  /*suppression*/
 		case TCORE_CALL_CLI_MODE_DEFAULT:
 		default:
@@ -1325,11 +1538,11 @@ static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur )
 
 	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
 
-	ret = _call_request_message ( o, ur, cmd_str, strlen(cmd_str), on_confirmation_call_request, ci); 
+	ret = _call_request_message ( o, ur, cmd_str, strlen(cmd_str), on_confirmation_call_outgoing, co);
 
 	free(raw_str);
-	free(cmd_str);	
-	
+	free(cmd_str);
+
 	if ( !ret ) {
 		tcore_call_object_free( o, co );
 		return TCORE_RETURN_FAILURE;
@@ -1342,23 +1555,14 @@ static TReturn s_call_answer( CoreObject *o, UserRequest *ur )
 {
 	CallObject*					co = 0;
 	struct treq_call_answer*	data = 0;
-//	unsigned int				ipc_size = 0;
 	gboolean					ret = FALSE;
 	char*						cmd_str = NULL;
 	struct ATReqMetaInfo metainfo ;
 	unsigned int info_len =0;
-	
-	struct call_confirm_info_t* ci = 0;
-
 
 	data = (struct treq_call_answer*)tcore_user_request_ref_data( ur, 0 );
 
 	co = tcore_call_object_find_by_id( o, data->id );
-
-	ci = g_new0( struct call_confirm_info_t, 1 );
-	ci->co = co;
-	ci->resp = TRESP_CALL_ANSWER;
-
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
 
@@ -1372,7 +1576,7 @@ static TReturn s_call_answer( CoreObject *o, UserRequest *ur )
 	if ( data->type == CALL_ANSWER_TYPE_ACCEPT ) {
 
 		cmd_str = g_strdup_printf("%s%s","ATA","\r");
-		ret = _call_request_message ( o, ur, (void*)cmd_str, strlen(cmd_str), on_confirmation_call_request, ci); 
+		ret = _call_request_message ( o, ur, (void*)cmd_str, strlen(cmd_str), on_confirmation_call_accept, co);
 		free(cmd_str);
 		if ( !ret )
 			return TCORE_RETURN_FAILURE;
@@ -1382,17 +1586,17 @@ static TReturn s_call_answer( CoreObject *o, UserRequest *ur )
 		switch ( data->type ) {
 			case CALL_ANSWER_TYPE_REJECT: {
 				dbg("call answer reject");
-				tcore_call_control_answer_reject( o, ur, on_confirmation_call_request, ci );
+				tcore_call_control_answer_reject( o, ur, on_confirmation_call_reject, co );
 			} break;
 
 			case CALL_ANSWER_TYPE_REPLACE: {
 				dbg("call answer replace");
-				tcore_call_control_answer_replace( o, ur, on_confirmation_call_request, ci );
+				tcore_call_control_answer_replace( o, ur, on_confirmation_call_replace, co );
 			} break;
 
 			case CALL_ANSWER_TYPE_HOLD_ACCEPT: {
 				dbg("call answer hold and accept");
-				tcore_call_control_answer_hold_and_accept( o, ur, on_confirmation_call_hold_and_accept, ci );
+				tcore_call_control_answer_hold_and_accept( o, ur, on_confirmation_call_hold_and_accept, co );
 			} break;
 
 			default :
@@ -1409,7 +1613,6 @@ static TReturn s_call_release( CoreObject *o, UserRequest *ur )
 	CallObject*					co = 0;
 
 	struct treq_call_end*		data = 0;
-	struct call_confirm_info_t* ci = 0;
 	gboolean					ret = FALSE;
 	UserRequest* ur_dup = 0;
 
@@ -1423,16 +1626,11 @@ static TReturn s_call_release( CoreObject *o, UserRequest *ur )
 
 	co = tcore_call_object_find_by_id( o, data->id );
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
-	ci->co = co;
-
 	if ( data->type == CALL_END_TYPE_ALL ) {
 
-		ci->resp = TRESP_CALL_END_ALL;
-
-		//releaseAll do not exist on legacy request. send CHLD=0, CHLD=1 in sequence	
-		chld0_cmd = g_strdup("AT+CHLD=0\r");
-		chld1_cmd = g_strdup("AT+CHLD=1\r");
+	//releaseAll do not exist on legacy request. send CHLD=0, CHLD=1 in sequence
+	chld0_cmd = g_strdup("AT+CHLD=0\r");
+	chld1_cmd = g_strdup("AT+CHLD=1\r");
 
 	memset(&metainfo1, 0, sizeof(struct ATReqMetaInfo));
 	memset(&metainfo2, 0, sizeof(struct ATReqMetaInfo));
@@ -1457,11 +1655,11 @@ static TReturn s_call_release( CoreObject *o, UserRequest *ur )
 		free(chld0_cmd);
 		if ( !ret )
 			return TCORE_RETURN_FAILURE;
-		
-		ret = _call_request_message(o, ur, chld1_cmd, strlen(chld1_cmd), on_confirmation_call_request, ci);
+
+		ret = _call_request_message(o, ur, chld1_cmd, strlen(chld1_cmd), on_confirmation_call_release_all, co);
 		free(chld1_cmd);
 		if ( !ret )
-			return TCORE_RETURN_FAILURE;		
+			return TCORE_RETURN_FAILURE;
 
 	} else {
 
@@ -1470,26 +1668,20 @@ static TReturn s_call_release( CoreObject *o, UserRequest *ur )
 				int id = 0;
 				id = tcore_call_object_get_id( co );
 
-				ci->resp = TRESP_CALL_END;
-
 				dbg("call end call id [%d]", id);
-				tcore_call_control_end_specific( o, ur, id, on_confirmation_call_request, ci );
+				tcore_call_control_end_specific( o, ur, id, on_confirmation_call_release_specific, co );
 			} break;
 
 			case CALL_END_TYPE_ACTIVE_ALL: {
 
-				ci->resp = TRESP_CALL_END_ALL_ACTIVE;
-
 				dbg("call end all active");
-				tcore_call_control_end_all_active( o, ur, on_confirmation_call_request, ci );
+				tcore_call_control_end_all_active( o, ur, on_confirmation_call_release_all_active, co );
 			} break;
 
 			case TCORE_CALL_END_ALL_HELD: {
 
-				ci->resp = TRESP_CALL_END_ALL_HELD;
-
 				dbg("call end all held");
-				tcore_call_control_end_all_held( o, ur, on_confirmation_call_request, ci );
+				tcore_call_control_end_all_held( o, ur, on_confirmation_call_release_all_held, co );
 			} break;
 
 			default :
@@ -1504,134 +1696,113 @@ static TReturn s_call_release( CoreObject *o, UserRequest *ur )
 
 static TReturn s_call_hold( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	unsigned int *id = 0;
-	id = (unsigned int*)tcore_user_request_ref_data( ur, 0 );
+	struct treq_call_hold *hold = 0;
+	CallObject *co = 0;
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
+	hold = (struct treq_call_hold*)tcore_user_request_ref_data( ur, 0 );
 
-	dbg("call id : [ %d ]", *id);
+	dbg("call id : [ %d ]", hold->id);
 
-	ci->co = tcore_call_object_find_by_id( o, *id );
-	ci->resp = TRESP_CALL_HOLD;
+	co = tcore_call_object_find_by_id( o, hold->id );
 
-	tcore_call_control_hold( o, ur, on_confirmation_call_hold, ci );
+	tcore_call_control_hold( o, ur, on_confirmation_call_hold, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_active( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	unsigned int *id = 0;
-	id = (unsigned int*)tcore_user_request_ref_data( ur, 0 );
+	struct treq_call_active *active = 0;
+	CallObject *co = 0;
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
+	active = (struct treq_call_active*)tcore_user_request_ref_data( ur, 0 );
 
-	dbg("call id : [ %d ]", *id);
+	dbg("call id : [ %d ]", active->id);
 
-	ci->co = tcore_call_object_find_by_id( o, *id );
-	ci->resp = TRESP_CALL_ACTIVE;
+	co = tcore_call_object_find_by_id( o, active->id );
 
-	tcore_call_control_active( o, ur, on_confirmation_call_request, ci );
+	tcore_call_control_active( o, ur, on_confirmation_call_active, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_swap( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	unsigned int *id = 0;
-	id = (unsigned int*)tcore_user_request_ref_data( ur, 0 );
+	struct treq_call_swap *swap = 0;
+	CallObject *co = 0;
+	swap = (struct treq_call_swap*)tcore_user_request_ref_data( ur, 0 );
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
+	dbg("call id : [ %d ]", swap->id);
 
-	dbg("call id : [ %d ]", *id);
+	co = tcore_call_object_find_by_id( o, swap->id );
 
-	ci->co = tcore_call_object_find_by_id( o, *id );
-	ci->resp = TRESP_CALL_SWAP;
-
-	tcore_call_control_swap( o, ur, on_confirmation_call_swap, ci );
+	tcore_call_control_swap( o, ur, on_confirmation_call_swap, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_join( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	unsigned int *id = 0;
-	id = (unsigned int*)tcore_user_request_ref_data( ur, 0 );
+	struct treq_call_join *join = 0;
+	CallObject *co = 0;
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
+	join = (struct treq_call_join*)tcore_user_request_ref_data( ur, 0 );
 
-	dbg("call id : [ %d ]", *id);
+	dbg("call id : [ %d ]", join->id);
 
-	ci->co = tcore_call_object_find_by_id( o, *id );
-	ci->resp = TRESP_CALL_JOIN;
+	co = tcore_call_object_find_by_id( o, join->id );
 
-	tcore_call_control_join( o, ur, on_confirmation_call_request, ci );
+	tcore_call_control_join( o, ur, on_confirmation_call_join, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_split( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	unsigned int *id = 0;
+	struct treq_call_split *split = 0;
+	CallObject *co = 0;
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
+	split = (struct treq_call_split*)tcore_user_request_ref_data( ur, 0 );
 
-	id = (unsigned int *)tcore_user_request_ref_data( ur, 0 );
-	ci->co = tcore_call_object_find_by_id ( o, *id );
-	ci->resp = TRESP_CALL_SPLIT;
+	co = tcore_call_object_find_by_id ( o, split->id );
 
-	tcore_call_control_split( o, ur, *id, on_confirmation_call_split, ci );
+	tcore_call_control_split( o, ur, split->id, on_confirmation_call_split, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_deflect( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	char *number = 0;
+	struct treq_call_deflect *deflect = 0;
+	CallObject *co = 0;
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
-	number = (char*)tcore_user_request_ref_data( ur, 0 );
+	deflect = (struct treq_call_deflect*)tcore_user_request_ref_data( ur, 0 );
 
-	ci->co = tcore_call_object_find_by_number( o, number );
-	ci->resp = TRESP_CALL_DEFLECT;
+	co = tcore_call_object_find_by_number( o, deflect->number );
 
-	tcore_call_control_deflect( o, ur, number, on_confirmation_call_request, ci );
+	tcore_call_control_deflect( o, ur, deflect->number, on_confirmation_call_deflect, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_transfer( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	unsigned int *id = 0;
-	id = (unsigned int*)tcore_user_request_ref_data( ur, 0 );
+	struct treq_call_transfer *transfer = 0;
+	CallObject *co = 0;
 
-	ci = g_new0( struct call_confirm_info_t, 1 );
+	transfer = (struct treq_call_transfer*)tcore_user_request_ref_data( ur, 0 );
 
-	dbg("call id : [ %d ]", *id);
+	dbg("call id : [ %d ]", transfer->id);
 
-	ci->co = tcore_call_object_find_by_id( o, *id );
-	ci->resp = TRESP_CALL_TRANSFER;
+	co = tcore_call_object_find_by_id( o, transfer->id );
 
-	tcore_call_control_transfer( o, ur, on_confirmation_call_request, ci );
+	tcore_call_control_transfer( o, ur, on_confirmation_call_transfer, co );
 
 	return TCORE_RETURN_SUCCESS;
 }
 
 static TReturn s_call_send_dtmf( CoreObject *o, UserRequest *ur )
 {
-	struct call_confirm_info_t* ci = 0;
-	ci = g_new0( struct call_confirm_info_t, 1 );
-
-	ci->co = 0;
-	ci->resp = TRESP_CALL_SEND_DTMF;
-
 	return TCORE_RETURN_SUCCESS;
 }
 
@@ -1671,7 +1842,6 @@ static TReturn s_call_get_mute_status( CoreObject *o, UserRequest *ur )
 	return TCORE_RETURN_SUCCESS;
 }
 
-
 static struct tcore_call_operations call_ops = {
 	.dial					= s_call_outgoing,
 	.answer					= s_call_answer,
@@ -1709,7 +1879,7 @@ static void s_call_info_mo_waiting( CoreObject *o )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_WAITING,
 								sizeof(unsigned int),
@@ -1731,7 +1901,7 @@ static void s_call_info_mo_forwarded( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_FORWARDED,
 								sizeof(unsigned int),
@@ -1753,7 +1923,7 @@ static void s_call_info_mo_barred_incoming( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_BARRED_INCOMING,
 								sizeof(unsigned int),
@@ -1775,7 +1945,7 @@ static void s_call_info_mo_barred_outgoing( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_BARRED_OUTGOING,
 								sizeof(unsigned int),
@@ -1797,7 +1967,7 @@ static void s_call_info_mo_deflected( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_DEFLECTED,
 								sizeof(unsigned int),
@@ -1819,7 +1989,7 @@ static void s_call_info_mo_clir_suppression_reject( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_CLIR_SUPPRESSION_REJECT,
 								sizeof(unsigned int),
@@ -1841,7 +2011,7 @@ static void s_call_info_mo_cfu( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_FORWARD_UNCONDITIONAL,
 								sizeof(unsigned int),
@@ -1863,7 +2033,7 @@ static void s_call_info_mo_cfc( CoreObject *o )
 	}
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_FORWARD_CONDITIONAL,
 								sizeof(unsigned int),
@@ -1910,14 +2080,14 @@ static void s_call_info_mt_forwarded_call( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_FORWARDED_CALL,
 								sizeof(unsigned int),
 								(void*)&id	);
 }
 
-static void s_call_info_mt_deflected_call( CoreObject *o, char* number ) 
+static void s_call_info_mt_deflected_call( CoreObject *o, char* number )
 {
 	CallObject *co = 0;
 	int id = 0;
@@ -1933,7 +2103,7 @@ static void s_call_info_mt_deflected_call( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_DEFLECTED_CALL,
 								sizeof(unsigned int),
@@ -1956,7 +2126,7 @@ static void s_call_info_mt_transfered( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_TRANSFERED_CALL,
 								sizeof(unsigned int),
@@ -1979,7 +2149,7 @@ static void s_call_info_held( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_HELD,
 								sizeof(unsigned int),
@@ -2002,7 +2172,7 @@ static void s_call_info_active( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_ACTIVE,
 								sizeof(unsigned int),
@@ -2025,7 +2195,7 @@ static void s_call_info_joined( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_JOINED,
 								sizeof(unsigned int),
@@ -2048,7 +2218,7 @@ static void s_call_info_released_on_hold( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_RELEASED_ON_HOLD,
 								sizeof(unsigned int),
@@ -2071,7 +2241,7 @@ static void s_call_info_transfer_alert( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_TRANSFER_ALERT,
 								sizeof(unsigned int),
@@ -2094,7 +2264,7 @@ static void s_call_info_transfered( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_TRANSFERED,
 								sizeof(unsigned int),
@@ -2117,7 +2287,7 @@ static void s_call_info_cf_check_message( CoreObject *o, char* number )
 
 	id = tcore_call_object_get_id( co );
 
-	tcore_server_send_notification(	tcore_plugin_ref_server(p), 
+	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 								tcore_plugin_ref_core_object(p, "call"),
 								TNOTI_CALL_INFO_CF_CHECK_MESSAGE,
 								sizeof(unsigned int),
@@ -2126,7 +2296,7 @@ static void s_call_info_cf_check_message( CoreObject *o, char* number )
 
 
 static struct tcore_call_information_operations call_information_ops = {
-	.mo_call_col				= 0, 
+	.mo_call_col				= 0,
 	.mo_call_waiting			= s_call_info_mo_waiting,
 	.mo_call_cug				= 0,
 	.mo_call_forwarded			= s_call_info_mo_forwarded,
@@ -2151,13 +2321,13 @@ static struct tcore_call_information_operations call_information_ops = {
 	.call_cf_check_message		= s_call_info_cf_check_message,
 };
 
-gboolean s_call_init( TcorePlugin *p )
+gboolean s_call_init(TcorePlugin *p, TcoreHal *h)
 {
 	CoreObject *o = NULL;
 //	TcoreHal *h = NULL;
 	struct property_call_info *data = NULL;
 
-	o = tcore_call_new( p, "call", &call_ops );
+	o = tcore_call_new(p, "call", &call_ops, h);
 	if (!o)
 		return FALSE;
 

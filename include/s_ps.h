@@ -21,8 +21,7 @@
 #ifndef __S_PS_H__
 #define __S_PS_H__
 
-
-gboolean s_ps_init(TcorePlugin *p);
+gboolean s_ps_init(TcorePlugin *p, TcoreHal *h);
 void s_ps_exit(TcorePlugin *p);
 
 #endif

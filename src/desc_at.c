@@ -107,12 +107,12 @@ static void stopSMSBuffering()
 	if(spc.line1 != NULL)
 		free(spc.line1);
 	spc.line1 = NULL;
-	
+
 	spc.sms_pdu_len = 0;
 	spc.cum_pdu_len =0;
 
 	spc.sms_pdu_mode = FALSE;
-	
+
 	if(spc.ppdu !=NULL)
 		free(spc.ppdu);
 	spc.ppdu = NULL;
@@ -127,12 +127,12 @@ static void handleFinalResponse(TcoreHal* hal, const char *line)
 	dbg("Final response arrived. call response callback");
 
 	// 1. add final rsp string into sp_response
-	sp_response->finalResponse = strdup(line); 
+	sp_response->finalResponse = strdup(line);
 
-	// 1.1 reverse intermediates 
+	// 1.1 reverse intermediates
 	reverseIntermediates(sp_response);
 
-	// 2. pop head pending from queue -> call callback hung pending(on_response) -> 
+	// 2. pop head pending from queue -> call callback hung pending(on_response) ->
 	//	release sp_response/s_responsePrefix -> release userRequest/pending -> send next pending from queue
 	//	warning) length have no meaning. data always pointer sp_response
 	tcore_hal_dispatch_response_data(hal, ID_RESERVED_AT, strlen(line), sp_response);
@@ -152,14 +152,14 @@ static void onUnsolicited (const char *s, TcorePlugin* plugin, char* sms_pdu, in
 
 
 	if(strStartsWith(s,"+CMT:")){
-		//SMS incoming 
+		//SMS incoming
 		cmd = EVENT_SMS_INCOM_MSG;
-		
+
 		smsPdu.cmdLine = strdup(s);
 		smsPdu.pdu = malloc(pdu_len);
 		memcpy(smsPdu.pdu, sms_pdu, pdu_len);
 		smsPdu.len = pdu_len;
-		
+
 		tcore_plugin_core_object_event_emit(plugin, cmd, &smsPdu);
 		free(smsPdu.cmdLine);
 		free(smsPdu.pdu);
@@ -168,7 +168,7 @@ static void onUnsolicited (const char *s, TcorePlugin* plugin, char* sms_pdu, in
 	}
 	/* Ignore unsolicited responses until we're initialized.
 	* This is OK because the RIL library will poll for initial state
-	*/	
+	*/
 	else if (strStartsWith(s,"%SCFUN:")){
         /* SS specific -- modem power status notification */
 		cmd = EVENT_MODEM_PHONE_STATE;
@@ -199,7 +199,7 @@ static void onUnsolicited (const char *s, TcorePlugin* plugin, char* sms_pdu, in
 
 		free(line);
 
-		dbg("%SCLCC cmd : %d",cmd);	
+		dbg("%SCLCC cmd : %d",cmd);
 	}
 	else if (strStartsWith(s,"+CRING:")
 		|| strStartsWith(s,"RING")){
@@ -217,17 +217,17 @@ static void onUnsolicited (const char *s, TcorePlugin* plugin, char* sms_pdu, in
 	else if(strStartsWith(s,"+CCWA:")){
 		dbg("call waiting notification - wait for SCLCC with status 5");
 		return;
-	} 
+	}
 	else if (strStartsWith(s,"+CREG:")
 		|| strStartsWith(s,"+CGREG:")){
 		cmd = EVENT_NETWORK_REGISTRATION;
 	}
 	else if (strStartsWith(s,"+CMGS:"))	{
 		cmd = EVENT_SMS_SEND_ACK;
-	}	
+	}
 	else if (strStartsWith(s,"%SCDEV:"))	{
 		cmd = EVENT_SMS_DEVICE_READY;
-	}	
+	}
 	else if(strStartsWith(s,"+CIEV:")){
 		cmd = EVENT_NETWORK_ICON_INFO;
 	}
@@ -241,17 +241,17 @@ static void onUnsolicited (const char *s, TcorePlugin* plugin, char* sms_pdu, in
 	/* Send Event */
 	if(cmd)
 	{
-		line = strdup(s);		
+		line = strdup(s);
 		tcore_plugin_core_object_event_emit(plugin, cmd, line);
 		free(line);
 	}
-	
+
 }
 
 static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 {
 	TcoreQueue* pPendingQueue = NULL;
-	TcorePending* pPending =NULL; 
+	TcorePending* pPending =NULL;
 	gboolean result_status = FALSE;
 	pPendingQueue =(TcoreQueue*)tcore_hal_ref_queue(hal);
 	pPending = (TcorePending*)tcore_queue_ref_head(pPendingQueue); //topmost request
@@ -260,7 +260,7 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 
 	if(TCORE_RETURN_SUCCESS == tcore_pending_get_send_status(pPending, &result_status)
 		&& (result_status == FALSE))//request not sent but data comes - Unsolicited msg!
-	{	
+	{
 		/* no command pending */
 		dbg("no command pending. call onUnsolicited()");
 		onUnsolicited(line, p, NULL, 0);
@@ -269,7 +269,7 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 		sp_response->success = 1;
 		handleFinalResponse(hal, line);
 	} else if (isFinalResponseError(line)) {
-		dbg("final response -ERROR. call handleFinalResponse()");    
+		dbg("final response -ERROR. call handleFinalResponse()");
 		sp_response->success = 0;
 		handleFinalResponse(hal, line);
 	} else switch (s_type) {
@@ -303,7 +303,7 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 				addIntermediate(line);
 			} else {
 				/* we already have an intermediate response */
-				dbg("[SINGLELINE]:we already have an intermediate response. call onUnsolicited()");	
+				dbg("[SINGLELINE]:we already have an intermediate response. call onUnsolicited()");
 				onUnsolicited(line,p, NULL, 0);
 			}
 		}
@@ -345,12 +345,12 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 	* the buffer continues until a \0
 	*/
 
-/*check sms pdu cumulating process - data hijacking*/
+	/*check sms pdu cumulating process - data hijacking*/
 	if(spc.sms_pdu_mode == TRUE)
 	{ //continue sms pdu buffering
 		dbg("resume pdu buffering. pdu size : %d, gathered size : %d",spc.sms_pdu_len,spc.cum_pdu_len);
 		len = spc.sms_pdu_len - spc.cum_pdu_len; //length needed
-		
+
 		if(act_len > len){
 			dbg("whole pdu received - data surplus");
 			memcpy(spc.ppdu_marker, act_data,len);//data fully copied
@@ -360,20 +360,20 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 			act_data = act_data + len;
 			act_len = act_len - len;
 			dbg("recv string changed to = %s, length changed to : %d", (char*)act_data, act_len);
-			
+
 			onUnsolicited(spc.line1, p, spc.ppdu, spc.sms_pdu_len);
-			stopSMSBuffering();	
-			dbg("incoming sms handled. back to normal mode & continue");			
+			stopSMSBuffering();
+			dbg("incoming sms handled. back to normal mode & continue");
 		}
 		else if(act_len == len){
 			dbg("exactly whole pdu received");
-			
+
 			memcpy(spc.ppdu_marker, act_data,len);//data fully copied
 			spc.cum_pdu_len = spc.cum_pdu_len + len;
-			
+
 			onUnsolicited(spc.line1, p, spc.ppdu, spc.sms_pdu_len);
-			stopSMSBuffering();	
-			dbg("all incoming data consumed. return");			
+			stopSMSBuffering();
+			dbg("all incoming data consumed. return");
 			return TRUE;
 		}
 		else	{
@@ -385,17 +385,17 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 			return TRUE;
 		}
 	}
-	
-	
-	if (*s_ATBufferCur == '\0') 
+
+
+	if (*s_ATBufferCur == '\0')
 	{
 		/* empty buffer */
 		s_ATBufferCur = s_ATBuffer;
 		*s_ATBufferCur = '\0';
 		p_read = s_ATBuffer;
 	}
-	else 
-	{   	
+	else
+	{
 		/* *s_ATBufferCur != '\0' */
 		/* there's data in the buffer from the last read */
 
@@ -405,7 +405,7 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 
 		p_eol = findNextEOL(s_ATBufferCur);
 
-		if (p_eol == NULL) 
+		if (p_eol == NULL)
 		{
 			/* a partial line. move it up and prepare to read more */
 			unsigned int  len;
@@ -463,7 +463,7 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 
 		p_eol = findNextEOL(s_ATBufferCur);
 
-		if(p_eol !=NULL) /*end of line found!*/ 
+		if(p_eol !=NULL) /*end of line found!*/
 		{
 			/* a full line in the buffer. Place a \0 over the \r and return */
 			ret = s_ATBufferCur;
@@ -472,44 +472,44 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 			/* and there will be a \0 at *p_read */
 
 			dbg("complete line found. process it/n");
-			dbg("rsp line : %s/n",ret);					  
+			dbg("rsp line : %s/n",ret);
 			if(1 == isSMSUnsolicited(ret))
 			{
 				dbg("start of incoming sms found!!! - next data is PDU");
 				startSMSBuffering(ret);
 				s_ATBufferCur++; //move starting point by 1 - it goes to the very starting point of PDU
 				leftover_len = p_marker - s_ATBufferCur;
-				
+
 				dbg("count leftover : %d", leftover_len);
 				if(leftover_len <0){
-					dbg("pointer address error -serious!");	
+					dbg("pointer address error -serious!");
 					return FALSE;
 				}
 				else if(leftover_len ==0){
-					dbg("no pdu received - wait for incoming data");	
+					dbg("no pdu received - wait for incoming data");
 					spc.cum_pdu_len =0;
 					spc.ppdu_marker = spc.ppdu;
 				}
 				else if(leftover_len >= spc.sms_pdu_len){
-					dbg("whole  pdu already received!");	
+					dbg("whole  pdu already received!");
 					memcpy(spc.ppdu, s_ATBufferCur, spc.sms_pdu_len);
 					spc.cum_pdu_len = spc.sms_pdu_len;
 					onUnsolicited(spc.line1, p, spc.ppdu, spc.sms_pdu_len);
 					s_ATBufferCur = s_ATBufferCur+spc.sms_pdu_len;
-					dbg("move buffercur to point the very end of pdu!");	
+					dbg("move buffercur to point the very end of pdu!");
 					stopSMSBuffering();
 				}
 				else	{
-						dbg("staring part of pdu received!");	
-						memcpy(spc.ppdu, s_ATBufferCur,leftover_len);
-						spc.ppdu_marker = spc.ppdu + leftover_len;
-						spc.cum_pdu_len = leftover_len;
-						s_ATBufferCur = s_ATBufferCur + leftover_len;
-					}
+					dbg("staring part of pdu received!");
+					memcpy(spc.ppdu, s_ATBufferCur,leftover_len);
+					spc.ppdu_marker = spc.ppdu + leftover_len;
+					spc.cum_pdu_len = leftover_len;
+					s_ATBufferCur = s_ATBufferCur + leftover_len;
+				}
 
 			}
 			else
-			{		
+			{
 			processLine(hal, ret,p);
 			}
 		}
@@ -558,19 +558,17 @@ static gboolean on_init(TcorePlugin *p)
 		return FALSE;
 	}
 
-	tcore_plugin_set_hal(p, h);
-
 	tcore_hal_add_send_hook(h, on_hal_send, p);
 	tcore_hal_add_recv_callback(h, on_hal_recv, p);
 
-	s_modem_init(p);
-	s_network_init(p);
-	s_sim_init(p);
+	s_modem_init(p, h);
+	s_network_init(p, h);
+	s_sim_init(p, h);
 //	s_sap_init(p);
-	s_ps_init(p);
-	s_call_init(p);
-	s_ss_init(p);
-	s_sms_init(p);
+	s_ps_init(p, h);
+	s_call_init(p, h);
+	s_ss_init(p, h);
+	s_sms_init(p, h);
 //	s_phonebook_init(p);
 #ifndef TEST_AT_SOCKET
 	tcore_hal_set_power(h, TRUE);

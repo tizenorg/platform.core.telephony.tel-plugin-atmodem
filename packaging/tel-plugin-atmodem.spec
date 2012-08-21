@@ -1,7 +1,7 @@
 #sbs-git:slp/pkgs/t/tel-plugin-atmodem
-Name:       tel-plugin-atmodem
-Summary:    Telephony AT Modem library
-Version: 0.1.4
+Name: tel-plugin-atmodem
+Summary: Telephony AT Modem library
+Version: 0.1.15
 Release:    1
 Group:      System/Libraries
 License:    Apache
@@ -52,6 +52,7 @@ rm -rf %{buildroot}
 %make_install
 
 %files
+%manifest tel-plugin-atmodem.manifest
 %defattr(-,root,root,-)
 #%doc COPYING
 %{_libdir}/telephony/plugins/atmodem-plugin*

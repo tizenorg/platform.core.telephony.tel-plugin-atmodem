@@ -159,7 +159,7 @@ TReturn convertCMEError(enum ATCMEError error);
 #define AT_NOTI_TOK_ERROR_INTERNEL(token, file, line) \
 {\
 	err("AT_NOTI_TOK_ERROR_INTERNEL %s:%d %s",file,line,token?token:"");\
-	return;\
+	return TRUE;\
 }\
 
 #endif /* __ATCHANNEL_H__ */
