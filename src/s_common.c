@@ -177,24 +177,23 @@ unsigned char util_hexCharToInt(char c)
 char * util_hexStringToBytes(char * s)
 {
     char * ret;
-    int     i;
-    int         sz;
+	int i;
+	int sz;
 
-    if(s == NULL)
-        return NULL;
+	if (s == NULL)
+		return NULL;
 
-        sz = strlen(s);
+	sz = strlen(s);
 
-    ret = malloc(sz /2);
+	ret = calloc((sz/2)+1, 1);
 
-    dbg("Convert String to Binary!!");
+	dbg("Convert String to Binary!!");
 
-    for(i = 0; i < sz; i += 2)
-    {
-        ret[i/2] = (char)((util_hexCharToInt(s[i]) << 4) | util_hexCharToInt(s[i + 1]));
-        dbg("[%02x]", ret[i/2]);
-    }
+	for (i = 0; i < sz; i += 2) {
+		ret[i / 2] = (char) ((util_hexCharToInt(s[i]) << 4) | util_hexCharToInt(s[i + 1]));
+		dbg("[%02x]", ret[i/2]);
+	}
 
-    return ret;
+	return ret;
 }
 
