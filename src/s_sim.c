@@ -45,6 +45,8 @@ extern struct ATResponse *sp_response;
 extern char *s_responsePrefix;
 extern enum ATCommandType s_type;
 
+int SimMetaInfoType = 0;	// 0: ATReqMetaInfo, 1: s_sim_property
+
 #define SWAPBYTES16(x) \
 { \
     unsigned short int data = *(unsigned short int*)&(x); \
@@ -864,13 +866,15 @@ static void on_confirmation_sim_message_send( TcorePending *p, gboolean result, 
 
 	dbg("********************************tcore_user_request_get_command[0x%x]", tcore_user_request_get_command(ur));
 
-	if(tcore_user_request_get_command(ur) == TREQ_CUSTOM)
+	if(SimMetaInfoType == 1)  // s_sim_property
 	{
 		file_meta = (struct s_sim_property *)tcore_user_request_ref_metainfo(ur,&info_len);
 		metainfo = &(file_meta->metainfo);
 
 		dbg("file_meta->type[%d]", file_meta->metainfo.type);
 		dbg("metainfo->type[%d]", metainfo->type);
+
+		SimMetaInfoType = 0;	// 0: ATReqMetaInfo, 1: s_sim_property
 	}
 	else
 	{
@@ -1634,7 +1638,7 @@ static TReturn _get_file_info(CoreObject *o, UserRequest *ur, const enum tel_sim
 	memcpy(file_meta.metainfo.responsePrefix,"+CRSM:",strlen("+CRSM:"));
 	info_len = sizeof(struct s_sim_property);
 
-	tcore_user_request_set_command(ur, TREQ_CUSTOM);
+	SimMetaInfoType = 1;	// s_sim_property
 
 	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &file_meta);
 	dbg("trt[%d]",trt);
@@ -2428,7 +2432,8 @@ static TReturn s_get_facility_status(CoreObject *o, UserRequest *ur)
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
 	info_len = sizeof(struct s_sim_property);
-	tcore_user_request_set_command(ur, TREQ_CUSTOM);
+
+	SimMetaInfoType = 1;	// s_sim_property;
 	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 	dbg("trt[%d]",trt);
 
@@ -2498,7 +2503,8 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
 	info_len = sizeof(struct s_sim_property);
-	tcore_user_request_set_command(ur, TREQ_CUSTOM);
+
+	SimMetaInfoType = 1;	// s_sim_property
 	tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 
 	// AT+CLCK=<fac>,<mode>,<password>
@@ -2567,7 +2573,8 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
 	info_len = sizeof(struct s_sim_property);
-	tcore_user_request_set_command(ur, TREQ_CUSTOM);
+
+	SimMetaInfoType = 1;	// s_sim_property
 	tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 
 	// AT+CLCK=<fac>,<mode>,<password>
