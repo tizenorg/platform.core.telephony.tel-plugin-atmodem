@@ -45,8 +45,6 @@ extern struct ATResponse *sp_response;
 extern char *s_responsePrefix;
 extern enum ATCommandType s_type;
 
-int SimMetaInfoType = 0;	// 0: ATReqMetaInfo, 1: s_sim_property
-
 #define SWAPBYTES16(x) \
 { \
     unsigned short int data = *(unsigned short int*)&(x); \
@@ -866,20 +864,11 @@ static void on_confirmation_sim_message_send( TcorePending *p, gboolean result, 
 
 	dbg("********************************tcore_user_request_get_command[0x%x]", tcore_user_request_get_command(ur));
 
-	if(SimMetaInfoType == 1)  // s_sim_property
-	{
-		file_meta = (struct s_sim_property *)tcore_user_request_ref_metainfo(ur,&info_len);
-		metainfo = &(file_meta->metainfo);
+	file_meta = (struct s_sim_property *)tcore_user_request_ref_metainfo(ur,&info_len);
+	metainfo = &(file_meta->metainfo);
 
-		dbg("file_meta->type[%d]", file_meta->metainfo.type);
-		dbg("metainfo->type[%d]", metainfo->type);
-
-		SimMetaInfoType = 0;	// 0: ATReqMetaInfo, 1: s_sim_property
-	}
-	else
-	{
-		metainfo = (struct ATReqMetaInfo*)tcore_user_request_ref_metainfo(ur,&info_len);
-	}
+	dbg("file_meta->type[%d]", file_meta->metainfo.type);
+	dbg("metainfo->type[%d]", metainfo->type);
 
 	if((metainfo->type == SINGLELINE)||
 		(metainfo->type == MULTILINE))
@@ -1578,8 +1567,8 @@ static gboolean _get_sim_type(CoreObject *o)
 	TcorePending *pending = NULL;
 
 	char *cmd_str = NULL;
-	struct ATReqMetaInfo metainfo;
-	int info_len =0;
+	struct s_sim_property file_meta={0,};
+	TReturn trt = 0;
 	UserRequest *ur = NULL;
 
 	if (!o)
@@ -1588,14 +1577,14 @@ static gboolean _get_sim_type(CoreObject *o)
 	p = tcore_object_ref_plugin(o);
 	h = tcore_object_get_hal(o);
 
-	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
-	metainfo.type = SINGLELINE;
-	memcpy(metainfo.responsePrefix,"%SCCT:",strlen("%SCCT:"));
-	info_len = sizeof(struct ATReqMetaInfo);
+	file_meta.metainfo.type = SINGLELINE;
+	memcpy(file_meta.metainfo.responsePrefix,"%SCCT:",strlen("%SCCT:"));
 
 	ur = tcore_user_request_new(NULL, NULL);
 
-	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
+	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &file_meta);
+	dbg("trt[%d]",trt);
+
 
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup("AT%SCCT\r");
@@ -1625,7 +1614,6 @@ static TReturn _get_file_info(CoreObject *o, UserRequest *ur, const enum tel_sim
 	TReturn trt = 0;
 
 	char *cmd_str = NULL;
-	int info_len =0;
 
 	if (!o)
 		return TCORE_RETURN_EINVAL;
@@ -1636,9 +1624,6 @@ static TReturn _get_file_info(CoreObject *o, UserRequest *ur, const enum tel_sim
 	file_meta.file_id = ef;
 	file_meta.metainfo.type = SINGLELINE;
 	memcpy(file_meta.metainfo.responsePrefix,"+CRSM:",strlen("+CRSM:"));
-	info_len = sizeof(struct s_sim_property);
-
-	SimMetaInfoType = 1;	// s_sim_property
 
 	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &file_meta);
 	dbg("trt[%d]",trt);
@@ -2215,10 +2200,9 @@ static TReturn s_verify_pins(CoreObject *o, UserRequest *ur)
 
 	struct s_sim_property *sp = NULL;
 	const struct treq_sim_verify_pins *req_data;
+	TReturn trt = 0;
 
 	char *cmd_str = NULL;
-	struct ATReqMetaInfo metainfo;
-	int info_len =0;
 
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
@@ -2244,12 +2228,12 @@ static TReturn s_verify_pins(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 	}
 
-	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
-	metainfo.type = NO_RESULT;
-	metainfo.responsePrefix[0] ='\0';
-	info_len = sizeof(struct ATReqMetaInfo);
+	sp->metainfo.type = NO_RESULT;
+	sp->metainfo.responsePrefix[0] = '\0';
 
-	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
+	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), sp);
+	dbg("trt[%d]",trt);
+
 
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup_printf("AT+CPIN=\"%s\"%s", req_data->pin, "\r");
@@ -2279,10 +2263,9 @@ static TReturn s_verify_puks(CoreObject *o, UserRequest *ur)
 
 	const struct treq_sim_verify_puks *req_data;
 	struct s_sim_property *sp = NULL;
+	TReturn trt = 0;
 
 	char *cmd_str = NULL;
-	struct ATReqMetaInfo metainfo;
-	int info_len =0;
 
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
@@ -2303,12 +2286,11 @@ static TReturn s_verify_puks(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 	}
 
-	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
-	metainfo.type = NO_RESULT;
-	metainfo.responsePrefix[0] ='\0';
-	info_len = sizeof(struct ATReqMetaInfo);
+	sp->metainfo.type = NO_RESULT;
+	sp->metainfo.responsePrefix[0] = '\0';
 
-	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
+	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), sp);
+	dbg("trt[%d]",trt);
 
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup_printf("AT+CPIN=\"%s\", \"%s\"%s", req_data->puk, req_data->pin, "\r");
@@ -2338,10 +2320,9 @@ static TReturn s_change_pins(CoreObject *o, UserRequest *ur)
 
 	const struct treq_sim_change_pins *req_data;
 	struct s_sim_property *sp = NULL;
+	TReturn trt = 0;
 
 	char *cmd_str = NULL;
-	struct ATReqMetaInfo metainfo;
-	int info_len =0;
 
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
@@ -2361,12 +2342,11 @@ static TReturn s_change_pins(CoreObject *o, UserRequest *ur)
 		return TCORE_RETURN_EINVAL;
 	}
 
-	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
-	metainfo.type = NO_RESULT;
-	metainfo.responsePrefix[0] ='\0';
-	info_len = sizeof(struct ATReqMetaInfo);
+	sp->metainfo.type = NO_RESULT;
+	sp->metainfo.responsePrefix[0] = '\0';
 
-	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
+	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), sp);
+	dbg("trt[%d]",trt);
 
 	// AT+CPIN=<pin>[,<newpin>]
 	cmd_str = g_strdup_printf("AT+CPIN=\"%s\", \"%s\"%s", req_data->old_pin, req_data->new_pin, "\r");
@@ -2402,7 +2382,6 @@ static TReturn s_get_facility_status(CoreObject *o, UserRequest *ur)
 
 	char *cmd_str = NULL;
 //	struct ATReqMetaInfo metainfo;
-	int info_len =0;
 
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
@@ -2431,9 +2410,7 @@ static TReturn s_get_facility_status(CoreObject *o, UserRequest *ur)
 	sec_meta.current_sec_op = req_data->type;
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
-	info_len = sizeof(struct s_sim_property);
 
-	SimMetaInfoType = 1;	// s_sim_property;
 	trt = tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 	dbg("trt[%d]",trt);
 
@@ -2470,7 +2447,6 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 
 	char *cmd_str = NULL;
 //	struct ATReqMetaInfo metainfo;
-	int info_len =0;
 
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
@@ -2502,9 +2478,7 @@ static TReturn s_enable_facility(CoreObject *o, UserRequest *ur)
 	sec_meta.current_sec_op = req_data->type;
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
-	info_len = sizeof(struct s_sim_property);
 
-	SimMetaInfoType = 1;	// s_sim_property
 	tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 
 	// AT+CLCK=<fac>,<mode>,<password>
@@ -2540,7 +2514,6 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 
 	char *cmd_str = NULL;
 	//	struct ATReqMetaInfo metainfo;
-	int info_len =0;
 
 	if (!o || !ur)
 		return TCORE_RETURN_EINVAL;
@@ -2572,9 +2545,7 @@ static TReturn s_disable_facility(CoreObject *o, UserRequest *ur)
 	sec_meta.current_sec_op = req_data->type;
 	sec_meta.metainfo.type = SINGLELINE;
 	memcpy(sec_meta.metainfo.responsePrefix,"+CLCK:",strlen("+CLCK:"));
-	info_len = sizeof(struct s_sim_property);
 
-	SimMetaInfoType = 1;	// s_sim_property
 	tcore_user_request_set_metainfo(ur, sizeof(struct s_sim_property), &sec_meta);
 
 	// AT+CLCK=<fac>,<mode>,<password>
