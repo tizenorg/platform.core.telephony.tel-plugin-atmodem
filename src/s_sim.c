@@ -510,11 +510,11 @@ static enum tel_sim_access_result _decode_status_word(unsigned short status_word
 		dbg(" error -Incorrect parameters [%x][%x]", status_word1, status_word2);
 	}
 	else if (status_word1 == 0x6A && status_word2 == 0x82) {
-		rst = SIM_ACCESS_FAILED; // not sure of the SW1 and SW2 meaning here
+		rst = SIM_ACCESS_FILE_NOT_FOUND; // not sure of the SW1 and SW2 meaning here
 		dbg(" error -File Not found [%x][%x]", status_word1, status_word2);
 	}
 	else if (status_word1 == 0x6A && status_word2 == 0x83) {
-		rst = SIM_ACCESS_FAILED; // not sure of the SW1 and SW2 meaning here
+		rst = SIM_ACCESS_FILE_NOT_FOUND; // not sure of the SW1 and SW2 meaning here
 		dbg(" error -Record Not found [%x][%x]", status_word1, status_word2);
 	}
 	else {
@@ -2644,7 +2644,7 @@ static TReturn s_read_file(CoreObject *o, UserRequest *ur)
 			break;
 
 		case TREQ_SIM_GET_CPHS_NETNAME:
-			api_ret = TCORE_RETURN_ENOSYS;
+			api_ret = _get_file_info(o, ur, SIM_EF_CPHS_OPERATOR_NAME_STRING);
 			break;
 
 		case TREQ_SIM_GET_OPLMNWACT:
