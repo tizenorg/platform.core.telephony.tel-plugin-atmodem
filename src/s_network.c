@@ -755,6 +755,7 @@ static void on_sim_resp_hook_get_netname(UserRequest *ur, enum tcore_response_co
 {
 	const struct tresp_sim_read *resp = data;
 	CoreObject *o = user_data;
+	struct tnoti_network_registration_status regist_status;
 
 	if (command == TRESP_SIM_GET_SPN) {
 		dbg("OK SPN GETTING!!");
@@ -781,6 +782,14 @@ static void on_sim_resp_hook_get_netname(UserRequest *ur, enum tcore_response_co
 			tcore_network_set_network_name_priority(o, TCORE_NETWORK_NAME_PRIORITY_ANY);
 		}
 	}
+
+	tcore_network_get_service_status(o, TCORE_NETWORK_SERVICE_DOMAIN_TYPE_CIRCUIT, &regist_status.cs_domain_status);
+	tcore_network_get_service_status(o, TCORE_NETWORK_SERVICE_DOMAIN_TYPE_PACKET, &regist_status.ps_domain_status);
+	tcore_network_get_service_type(o, &regist_status.service_type);
+	regist_status.roaming_status = tcore_network_get_roaming_state(o);
+
+	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o,
+			TNOTI_NETWORK_REGISTRATION_STATUS, sizeof(struct tnoti_network_registration_status), &regist_status);
 }
 
 static enum tcore_hook_return on_hook_sim_init(Server *s, CoreObject *source, enum tcore_notification_command command,
