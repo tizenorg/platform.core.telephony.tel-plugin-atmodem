@@ -1,11 +1,5 @@
 <manifest>
 	<request>
-		<domain name="telephony_framework"/>
-	</request>
-	<assign>
-		<filesystem path="/usr/lib/telephony/plugins/atmodem-plugin.so" label="telephony_framework"/>
-	</assign>
-	<request>
-		<domain name="telephony_framework"/>
+		<domain name="_"/>
 	</request>
 </manifest>
