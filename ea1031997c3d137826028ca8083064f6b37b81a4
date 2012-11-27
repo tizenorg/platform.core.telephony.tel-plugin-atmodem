@@ -1,0 +1,9 @@
+Change-Id: Iea1031997c3d137826028ca8083064f6b37b81a4
+Verified+1: Ryan Ware <ryan.r.ware@intel.com>
+Code-Review+2: Tracy Graydon <tracy.graydon@intel.com>
+Verified+1: Tracy Graydon <tracy.graydon@intel.com>
+Submitted-by: Tracy Graydon <tracy.graydon@intel.com>
+Submitted-at: Wed, 28 Nov 2012 05:53:49 +0900
+Reviewed-on: http://review.tizen.org/gerrit/2257
+Project: framework/telephony/tel-plugin-atmodem
+Branch: refs/heads/master
