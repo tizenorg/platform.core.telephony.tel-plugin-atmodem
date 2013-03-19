@@ -551,7 +551,7 @@ static void on_response_get_serving_network(TcorePending *pending, int data_len,
 		resp.act = act;
 		resp.gsm.lac = current_lac;
 		ur = tcore_pending_ref_user_request(pending);
-		if (ur) {
+		if (tcore_user_request_ref_communicator(ur)) {
 			tcore_user_request_send_response(ur, TRESP_NETWORK_GET_SERVING_NETWORK, sizeof(struct tresp_network_get_serving_network), &resp);
 		}
 		else {
