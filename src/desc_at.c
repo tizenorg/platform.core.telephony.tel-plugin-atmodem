@@ -29,6 +29,7 @@
 #include <hal.h>
 #include <server.h>
 #include <queue.h>
+#include <core_object.h>
 
 #include "s_common.h"
 #include "s_sim.h"
@@ -146,6 +147,8 @@ static void onUnsolicited (const char *s, TcorePlugin* plugin, char* sms_pdu, in
 
 	int id;
 	int status, direction;
+
+	dbg("%s", s);
 
 #define STATUS_INCOMING 4
 #define STATUS_WAITING 5
@@ -266,10 +269,18 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 		onUnsolicited(line, p, NULL, 0);
 	} else if (isFinalResponseSuccess(line)) {
 		dbg("final response -success. call handleFinalResponse()");
+
+		if (sp_response == NULL)
+			return;
+
 		sp_response->success = 1;
 		handleFinalResponse(hal, line);
 	} else if (isFinalResponseError(line)) {
 		dbg("final response -ERROR. call handleFinalResponse()");
+
+		if (sp_response == NULL)
+			return;
+
 		sp_response->success = 0;
 		handleFinalResponse(hal, line);
 	} else switch (s_type) {
@@ -281,6 +292,11 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 		break;
 		case NUMERIC:
 		{
+			dbg("Process intermediate NUMERIC response");
+
+			if (sp_response == NULL)
+				return;
+
 			if (sp_response->p_intermediates == NULL
 				&& isdigit(line[0])
 			) {
@@ -296,9 +312,13 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 		break;
 		case SINGLELINE:
 		{
+			dbg("Process intermediate SINGLELINE response");
+
+			if (sp_response == NULL)
+				return;
+
 			if (sp_response->p_intermediates == NULL
-				&& strStartsWith (line, s_responsePrefix)
-			) {
+					&& strStartsWith (line, s_responsePrefix)) {
 				dbg("[SINGLELINE]:line starts with s_responsePrefix. call addIntermediate()");
 				addIntermediate(line);
 			} else {
@@ -309,13 +329,15 @@ static void processLine(TcoreHal *hal, char *line, TcorePlugin* p)
 		}
 		break;
 		case MULTILINE:
-		if (strStartsWith (line, s_responsePrefix)) {
-			dbg("[MULTILINE]:line starts with s_responsePrefix. call addIntermediate()");
-			addIntermediate(line);
-		} else {
-			dbg("[MULTILINE]:line don't starts with s_responsePrefix. call onUnsolicited()");
-			onUnsolicited(line,p, NULL, 0);
-		}
+			dbg("Process intermediate MULTILINE response");
+
+			if (strStartsWith (line, s_responsePrefix)) {
+				dbg("[MULTILINE]:line starts with s_responsePrefix. call addIntermediate()");
+				addIntermediate(line);
+			} else {
+				dbg("[MULTILINE]:line don't starts with s_responsePrefix. call onUnsolicited()");
+				onUnsolicited(line,p, NULL, 0);
+			}
 		break;
 
 		default: /* this should never be reached */
@@ -508,9 +530,8 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 				}
 
 			}
-			else
-			{
-			processLine(hal, ret,p);
+			else {
+				processLine(hal, ret,p);
 			}
 		}
 		else
@@ -523,12 +544,6 @@ static gboolean readline(TcoreHal *hal, unsigned int data_len, const void *data,
 	return TRUE;
 }
 
-static enum tcore_hook_return on_hal_send(TcoreHal *hal, unsigned int data_len, void *data, void *user_data)
-{
-	hook_hex_dump(TX, data_len, data);
-	return TCORE_HOOK_RETURN_CONTINUE;
-}
-
 static void on_hal_recv(TcoreHal *hal, unsigned int data_len, const void *data, void *user_data)
 {
 	gboolean ret = FALSE;
@@ -536,6 +551,42 @@ static void on_hal_recv(TcoreHal *hal, unsigned int data_len, const void *data, 
 
 	ret = readline(hal,data_len, data,plugin);
 }
+
+static enum tcore_hook_return on_hal_send(TcoreHal *hal, unsigned int data_len, void *data, void *user_data)
+{
+	hook_hex_dump(TX, data_len, data);
+	return TCORE_HOOK_RETURN_CONTINUE;
+}
+
+/* Initializer Table */
+struct object_initializer init_table = {
+	.modem_init = s_modem_init,
+	.sim_init = s_sim_init,
+	.sat_init = NULL,
+	.sap_init = NULL,
+	.network_init = s_network_init,
+	.ps_init = s_ps_init,
+	.call_init = s_call_init,
+	.ss_init = s_ss_init,
+	.sms_init = s_sms_init,
+	.phonebook_init = NULL,
+	.gps_init = NULL,
+};
+
+/* Deinitializer Table */
+struct object_deinitializer deinit_table = {
+	.modem_deinit = s_modem_exit,
+	.sim_deinit = s_sim_exit,
+	.sat_deinit = NULL,
+	.sap_deinit = NULL,
+	.network_deinit = s_network_exit,
+	.ps_deinit = s_ps_exit,
+	.call_deinit = s_call_exit,
+	.ss_deinit = s_ss_exit,
+	.sms_deinit = s_sms_exit,
+	.phonebook_deinit = NULL,
+	.gps_deinit = NULL,
+};
 
 static gboolean on_load()
 {
@@ -546,52 +597,40 @@ static gboolean on_load()
 
 static gboolean on_init(TcorePlugin *p)
 {
-	TcoreHal *h;
+	TcoreHal *hal;
+	CoreObject *co_modem;
 
-	if (!p)
-		return FALSE;
+	dbg("INIT");
 
-	dbg("i'm init!");
-
-	h = tcore_server_find_hal(tcore_plugin_ref_server(p), "vmodem");
-	if (!h)  {
+	/* Initialize Modules (Core Objects) */
+	if (tcore_object_init_objects(p, &init_table)
+			!= TCORE_RETURN_SUCCESS) {
+		err("Failed to initialize Core Objects");
 		return FALSE;
 	}
 
-	tcore_hal_add_send_hook(h, on_hal_send, p);
-	tcore_hal_add_recv_callback(h, on_hal_recv, p);
+	co_modem = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_MODEM);
+	hal = tcore_object_get_hal(co_modem);
 
-	s_modem_init(p, h);
-	s_network_init(p, h);
-	s_sim_init(p, h);
-//	s_sap_init(p);
-	s_ps_init(p, h);
-	s_call_init(p, h);
-	s_ss_init(p, h);
-	s_sms_init(p, h);
-//	s_phonebook_init(p);
-#ifndef TEST_AT_SOCKET
-	tcore_hal_set_power(h, TRUE);
-#endif
-//send "CPAS" command to invoke POWER UP NOTI
+	tcore_hal_add_send_hook(hal, on_hal_send, p);
+	tcore_hal_add_recv_callback(hal, on_hal_recv, p);
+
 	s_modem_send_poweron(p);
+
+	dbg("Init - Successful");
 
 	return TRUE;
 }
 
 static void on_unload(TcorePlugin *p)
 {
-	struct global_data *gd;
+	dbg("UNLOAD");
 
 	if (!p)
 		return;
 
-	dbg("i'm unload");
-
-	gd = tcore_plugin_ref_user_data(p);
-	if (gd) {
-		free(gd);
-	}
+	/* Deinitialize Modules (Core Objects) */
+	tcore_object_deinit_objects(p, &deinit_table);
 }
 
 struct tcore_plugin_define_desc plugin_define_desc =

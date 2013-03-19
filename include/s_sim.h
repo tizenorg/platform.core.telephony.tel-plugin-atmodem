@@ -21,7 +21,7 @@
 #ifndef __S_SIM_H__
 #define __S_SIM_H__
 
-gboolean s_sim_init(TcorePlugin *p, TcoreHal *h);
-void s_sim_exit(TcorePlugin *p);
+gboolean s_sim_init(TcorePlugin *cp, CoreObject *co);
+void s_sim_exit(TcorePlugin *cp, CoreObject *co);
 
 #endif

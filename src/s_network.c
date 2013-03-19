@@ -995,29 +995,21 @@ static struct tcore_network_operations network_ops = {
 	.get_serving_network = get_serving_network,
 };
 
-gboolean s_network_init(TcorePlugin *plugin, TcoreHal *h)
+gboolean s_network_init(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
+	tcore_network_override_ops(co, &network_ops);
 
-	o = tcore_network_new(plugin, "umts_network", &network_ops, h);
-	if (!o)
-		return FALSE;
+	tcore_object_override_callback(co, EVENT_NETWORK_REGISTRATION, on_event_network_regist, NULL);
+	tcore_object_override_callback(co, EVENT_NETWORK_ICON_INFO, on_event_network_icon_info, NULL);
 
-	tcore_object_add_callback(o, EVENT_NETWORK_REGISTRATION, on_event_network_regist, NULL);
-	tcore_object_add_callback(o, EVENT_NETWORK_ICON_INFO, on_event_network_icon_info, NULL);
+	tcore_server_add_notification_hook(tcore_plugin_ref_server(cp), TNOTI_SIM_STATUS, on_hook_sim_init, co);
 
-	tcore_server_add_notification_hook(tcore_plugin_ref_server(plugin), TNOTI_SIM_STATUS, on_hook_sim_init, o);
-
-	_insert_mcc_mnc_oper_list(plugin, o);
+	_insert_mcc_mnc_oper_list(cp, co);
 
 	return TRUE;
 }
 
-void s_network_exit(TcorePlugin *plugin)
+void s_network_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
-
-	o = tcore_plugin_ref_core_object(plugin, "umts_network");
-
-	tcore_network_free(o);
+	dbg("Exit");
 }

@@ -85,63 +85,55 @@ static void on_confirmation_ps_message_send( TcorePending *p, gboolean result, v
 	}
 }
 
-
-static TReturn _pdp_device_control(gboolean flag, unsigned int context_id)
+static void on_setup_pdp(CoreObject *co_ps, int result,
+			const char *netif_name, void *user_data)
 {
-	int size = 0;
-	int fd = 0;
-	char buf[32];
-	char *control = NULL;
+	CoreObject *ps_context = user_data;
+	struct tnoti_ps_call_status data_status = {0};
+	Server *server;
 
-	if (context_id > 3)
-		return TCORE_RETURN_EINVAL;
+	dbg("Entry");
 
-	if (flag)
-		control = "/sys/class/net/svnet0/pdp/activate";
-	else
-		control = "/sys/class/net/svnet0/pdp/deactivate";
-
-	fd = open(control, O_WRONLY);
-	if (fd < 0) {
-		return TCORE_RETURN_FAILURE;
+	if (result < 0) {
+		/* Deactivate PDP context */
+		tcore_ps_deactivate_context(co_ps, ps_context, NULL);
+		return;
 	}
 
-	snprintf(buf, sizeof(buf), "%d", context_id);
-	size = write(fd, buf, strlen(buf));
+	dbg("Device name: [%s]", netif_name);
 
-	close(fd);
-	return TCORE_RETURN_SUCCESS;
+	/* Set Device name */
+	tcore_context_set_ipv4_devname(ps_context, netif_name);
+
+	/* Set State - CONNECTED */
+	data_status.context_id = tcore_context_get_id(ps_context);
+	data_status.state = PS_DATA_CALL_CONNECTED;
+	dbg("Sending Call Status Notification - Context ID: [%d] Context State: [CONNECTED]", data_status.context_id);
+
+	/* Send Notification */
+	server = tcore_plugin_ref_server(tcore_object_ref_plugin(co_ps));
+	tcore_server_send_notification(server, co_ps,
+					TNOTI_PS_CALL_STATUS,
+					sizeof(struct tnoti_ps_call_status),
+					&data_status);
+
+	dbg("Exit");
 }
 
 static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, void *user_data)
 {
 	/* Parsing the response line and map into noti. */
 	CoreObject *ps_context = (CoreObject *)user_data;
-	unsigned int pdpContextCnt, cid = tcore_context_get_id(ps_context);
+	unsigned int cid = tcore_context_get_id(ps_context);
 	struct ATLine *p_cur = NULL;
 	const struct ATResponse *p_response = event_info;
-	int err, ret, p_cid=0, d_comp = -1, h_comp = -1;
-	struct tnoti_ps_pdp_ipconfiguration noti;
-	char devname[10] = {0,};
-	char addr_buf[5][20];
+	int err, p_cid = 0, d_comp = -1, h_comp = -1;
 	char *pdp_type = NULL, *apn = NULL;
-	char *line = NULL, *ip = NULL, *gateway = NULL;//, *netmask = NULL;
+	char *line = NULL, *ip = NULL;
+	TcoreHal *h = tcore_object_get_hal(o);
 
-	/* count the PDP contexts */
-	for (pdpContextCnt = 0, p_cur = p_response->p_intermediates
-			; p_cur != NULL
-			; p_cur = p_cur->p_next) {
-		pdpContextCnt++;
-	}
-
-	dbg("Total number of PDP contexts : %d",pdpContextCnt);
-
-	if(pdpContextCnt == 0)
-		return;
-
-	for (p_cur = p_response->p_intermediates
-			; p_cur != NULL
-			; p_cur = p_cur->p_next) {
+	for (p_cur = p_response->p_intermediates; p_cur != NULL;
+			p_cur = p_cur->p_next) {
 		line = p_response->p_intermediates->line;
 
 		err = at_tok_start(&line);
@@ -153,15 +145,15 @@ static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, v
 			err = at_tok_nextstr(&line,&pdp_type);
 			dbg("PDP type: %s", pdp_type);
 
-			if (pdp_type!=NULL)	{
+			if (pdp_type != NULL)	{
 				err = at_tok_nextstr(&line,&apn);
 				dbg("APN: %s", apn);
 			}
-			if (apn !=NULL) {
+			if (apn != NULL) {
 				err = at_tok_nextstr(&line,&ip);
 				dbg("IP address: %s", ip);
 			}
-			if (ip !=NULL) {
+			if (ip != NULL) {
 				err = at_tok_nextint(&line,&d_comp);
 				dbg("d_comp: %d", d_comp);
 			}
@@ -170,65 +162,26 @@ static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, v
 				dbg("h_comp: %d", h_comp);
 			}
 
-			memset(&noti, 0, sizeof(struct tnoti_ps_pdp_ipconfiguration));
+			(void)tcore_context_set_ipv4_addr(ps_context, (const char *)ip);
 
-			noti.context_id = cid;
-			noti.err = 0;
-
-			/* Just use AF_INET here. */
-			ret = inet_pton(AF_INET, ip, &noti.ip_address);
-			if (ret < 1) {
-				dbg("inet_pton() failed.");
-				return;
-			}
-
-			snprintf(addr_buf[0], 20, "%d.%d.%d.%d", noti.ip_address[0], noti.ip_address[1],
-					noti.ip_address[2], noti.ip_address[3]);
-			ip = addr_buf[0];
 			dbg("ip = [%s]", ip);
 
-			noti.primary_dns[0] = 8;
-			noti.primary_dns[1] = 8;
-			noti.primary_dns[2] = 8;
-			noti.primary_dns[3] = 8;
-			dbg("primary_dns = [8.8.8.8] Public DNS server.");
+			(void)tcore_context_set_ipv4_addr(ps_context, (const char *)ip);
 
-			noti.secondary_dns[0] = 8;
-			noti.secondary_dns[1] = 8;
-			noti.secondary_dns[2] = 4;
-			noti.secondary_dns[3] = 4;
-			dbg("secondary_dns = [8.8.4.4] Public DNS server.");
+			dbg("Adding default DNS pri: 8.8.8.8 sec: 8.8.4.4")
 
-			memcpy(&noti.gateway, &noti.ip_address, 4);
-			noti.gateway[3] = 1;
-			snprintf(addr_buf[3], 20, "%d.%d.%d.%d", noti.gateway[0], noti.gateway[1], noti.gateway[2],
-					noti.gateway[3]);
-			gateway = addr_buf[3];
-			dbg("gateway = [%s]", gateway);
+			tcore_context_set_ipv4_dns(ps_context, "8.8.8.8", "8.8.4.4");
 
-			/* FIX ME: use static netmask. */
-			noti.subnet_mask[0] = 255;
-			noti.subnet_mask[1] = 255;
-			noti.subnet_mask[2] = 255;
-			noti.subnet_mask[3] = 0;
-			dbg("subnet_mask = [255.255.255.0]");
-
-			if (_pdp_device_control(TRUE, cid) != TCORE_RETURN_SUCCESS) {
-				dbg("_pdp_device_control() failed. errno=%d", errno);
+			/* Mount network interface */
+			if (tcore_hal_setup_netif(h, o, on_setup_pdp, ps_context, cid, TRUE)
+					!= TCORE_RETURN_SUCCESS) {
+				err("Setup network interface failed");
+				return;
 			}
-
-			snprintf(devname, 10, "pdp%d", cid - 1);
-			memcpy(noti.devname, devname, 10);
-			dbg("devname = [%s]", devname);
-
-			if (tcore_util_netif_up(devname) != TCORE_RETURN_SUCCESS) {
-				dbg("util_netif_up() failed. errno=%d", errno);
-			}
-			tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_PS_PDP_IPCONFIGURATION,
-					sizeof(struct tnoti_ps_pdp_ipconfiguration), &noti);
+		} else {
+			dbg("No matched response with CID: %d", cid);
+			tcore_context_set_state(ps_context, CONTEXT_STATE_DEACTIVATED);
 		}
-		else
-			dbg("No matched response with CID: %d",cid);
 	}
 }
 
@@ -255,6 +208,7 @@ static void on_response_get_ipconfiguration(TcorePending *pending, int data_len,
 	}
 	else {
 		dbg("RESPONSE NOK");
+		tcore_context_set_state(ps_context, CONTEXT_STATE_DEACTIVATED);
 	}
 
 	ReleaseResponse();
@@ -307,6 +261,7 @@ static void on_response_ps_attached(TcorePending *p, int data_len, const void *d
 	}
 	else {
 		dbg("RESPONSE NOK");
+		tcore_context_set_state(ps_context, CONTEXT_STATE_DEACTIVATED);
 	}
 
 	ReleaseResponse();
@@ -364,10 +319,20 @@ static void on_response_active_set(TcorePending *p, int data_len, const void *da
 
 static void on_response_deactive_set(TcorePending *p, int data_len, const void *data, void *user_data)
 {
+	CoreObject *ps_context = user_data;
+	CoreObject *co_ps = tcore_pending_ref_core_object(p);
+	TcoreHal *h = tcore_object_get_hal(co_ps);
+	unsigned int cid = tcore_context_get_id(ps_context);
+
 	printResponse();
 
 	if (sp_response->success > 0) {
 		dbg("RESPONSE OK");
+		if (tcore_hal_setup_netif(h, co_ps, NULL, ps_context, cid,
+				FALSE) != TCORE_RETURN_SUCCESS)
+			err("Failed to disable network interface");
+
+		tcore_context_set_state(ps_context, CONTEXT_STATE_DEACTIVATED);
 	}
 	else {
 		dbg("RESPONSE NOK");
@@ -540,33 +505,29 @@ static struct tcore_ps_operations ps_ops =
 	.deactivate_context = deactivate_ps_context
 };
 
-gboolean s_ps_init(TcorePlugin *p, TcoreHal *h)
+gboolean s_ps_init(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
 	GQueue *work_queue;
 
-	o = tcore_ps_new(p, "umts_ps", &ps_ops, h);
-	if (!o)
-		return FALSE;
+	dbg("Entry");
+
+	tcore_ps_override_ops(co, &ps_ops);
 
 	work_queue = g_queue_new();
-	tcore_object_link_user_data(o, work_queue);
+	tcore_object_link_user_data(co, work_queue);
+
+	dbg("Exit");
 
 	return TRUE;
 }
 
-void s_ps_exit(TcorePlugin *p)
+void s_ps_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
 	GQueue *work_queue;
 
-	o = tcore_plugin_ref_core_object(p, "umts_ps");
-	if (!o)
-		return;
-
-	work_queue = tcore_object_ref_user_data(o);
+	work_queue = tcore_object_ref_user_data(co);
 	if (work_queue)
 		g_queue_free(work_queue);
 
-	tcore_ps_free(o);
+	dbg("Exit");
 }

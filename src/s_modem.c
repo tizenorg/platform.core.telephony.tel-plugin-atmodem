@@ -39,9 +39,9 @@
 #include "at_tok.h"
 
 #define MAX_VERSION_LEN	32
-#define TAPI_MISC_ME_SN_LEN_MAX				32
+#define TAPI_MISC_ME_SN_LEN_MAX		32
 #define TAPI_MISC_PRODUCT_CODE_LEN_MAX		32
-#define TAPI_MISC_MODEL_ID_LEN_MAX			17
+#define TAPI_MISC_MODEL_ID_LEN_MAX		17
 #define TAPI_MISC_PRL_ERI_VER_LEN_MAX		17
 
 enum cp_state {
@@ -155,6 +155,7 @@ static gboolean on_sys_event_modem_power(CoreObject *o, const void *event_info, 
 
 	return TRUE;
 }
+
 static gboolean on_event_modem_power(CoreObject *o, const void *event_info, void *user_data)
 {
 	struct treq_modem_set_flightmode flight_mode_set;
@@ -245,75 +246,18 @@ static gboolean on_event_modem_phone_state(CoreObject *o, const void *event_info
 
 	return TRUE;
 }
+
 static void on_response_poweron(TcorePending *p, int data_len, const void *data, void *user_data)
 {
-	char *line;
-	gboolean bpoweron = FALSE;
-	int response = 0;
-	int err;
-
-#define CPAS_RES_READY		0
-#define CPAS_RES_UNAVAIL	1
-#define CPAS_RES_UNKNOWN	2
-#define CPAS_RES_RINGING	3
-#define CPAS_RES_CALL_PROGRESS	4
-#define CPAS_RES_ASLEEP	5
-
-//print sp_response - for debug
 	printResponse();
 
-	if(sp_response->success > 0){
+	if(sp_response->success > 0) {
 		dbg("RESPONSE OK");
-		//parse response
-		line = sp_response->p_intermediates->line;
-
-		err = at_tok_start(&line);
-		if (err < 0) {
-		   bpoweron = FALSE;
-		   goto error;
-		}
-
-		err = at_tok_nextint(&line, &response);
-		if (err < 0) {
-			bpoweron =FALSE;
-		    goto error;
-		}
-
-		dbg("response %d",response);
-
-		switch(response)
-		{
-			case CPAS_RES_READY:
-			case CPAS_RES_RINGING:
-			case CPAS_RES_CALL_PROGRESS:
-			case CPAS_RES_ASLEEP:
-				bpoweron = TRUE;
-			break;
-
-			case CPAS_RES_UNAVAIL:
-			case CPAS_RES_UNKNOWN:
-			default:
-				bpoweron = FALSE;
-			break;
-		}
-	}else{
-		dbg("RESPONSE NOK");
-		bpoweron = FALSE;
-	}
-
-error:
-//5. release sp_response & s_responsePrefix - before sending user callback, because user callback can request additional request
-// and if queue is empty, that req can be directly sent to mdm - can cause sp_response, s_responsePrefix dangling
-	ReleaseResponse();
-
-	if(bpoweron == TRUE){
-		dbg("Power on NOTI received");
-		//procees power up noti process
+		ReleaseResponse();
 		on_event_modem_power(tcore_pending_ref_core_object(p), NULL, NULL);
-	}
-	else{ //poweron not complete - proceed same process again
-
-		dbg("CPAS once again");
+	} else{
+		dbg("RESPONSE NOK");
+		ReleaseResponse();
 		s_modem_send_poweron(tcore_object_ref_plugin(tcore_pending_ref_core_object(p)));
 	}
 }
@@ -656,71 +600,65 @@ static struct tcore_modem_operations modem_ops =
 	.get_version = get_version,
 };
 
-gboolean s_modem_init(TcorePlugin *p, TcoreHal *h)
+gboolean s_modem_init(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
 	GQueue *work_queue;
 	struct TelMiscVersionInformation *vi_property;
 	struct TelMiscSNInformation *imei_property;
 
-	o = tcore_modem_new(p, "modem", &modem_ops, h);
-	if (!o)
-		return FALSE;
+	dbg("Entry");
+
+	tcore_modem_override_ops(co, &modem_ops);
 
 	work_queue = g_queue_new();
-	tcore_object_link_user_data(o, work_queue);
+	tcore_object_link_user_data(co, work_queue);
 
-	tcore_object_add_callback(o, EVENT_SYS_NOTI_MODEM_POWER, on_sys_event_modem_power, NULL);
-
-	tcore_object_add_callback(o, EVENT_MODEM_POWER, on_event_modem_power, NULL);
-	tcore_object_add_callback(o, EVENT_MODEM_PHONE_STATE, on_event_modem_phone_state, NULL);
+	tcore_object_override_callback(co, EVENT_SYS_NOTI_MODEM_POWER, on_sys_event_modem_power, NULL);
+	tcore_object_override_callback(co, EVENT_MODEM_PHONE_STATE, on_event_modem_phone_state, NULL);
 
 	vi_property = calloc(sizeof(struct TelMiscVersionInformation), 1);
-	tcore_plugin_link_property(p, "VERSION", vi_property);
+	tcore_plugin_link_property(cp, "VERSION", vi_property);
 
 	imei_property = calloc(sizeof(struct TelMiscSNInformation), 1);
-	tcore_plugin_link_property(p, "IMEI", imei_property);
+	tcore_plugin_link_property(cp, "IMEI", imei_property);
+
+	dbg("Exit");
 
 	return TRUE;
 }
 
-void s_modem_exit(TcorePlugin *p)
+void s_modem_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
 	GQueue *work_queue;
 	struct TelMiscVersionInformation *vi_property;
 	struct TelMiscSNInformation *imei_property;
 
-	if (!p)
-		return;
-
-	o = tcore_plugin_ref_core_object(p, "modem");
-
-	work_queue = tcore_object_ref_user_data(o);
+	work_queue = tcore_object_ref_user_data(co);
 	g_queue_free(work_queue);
 
-	vi_property = tcore_plugin_ref_property(p, "VERSION");
+	vi_property = tcore_plugin_ref_property(cp, "VERSION");
 	if (vi_property)
 		free(vi_property);
 
-	imei_property = tcore_plugin_ref_property(p, "IMEI");
+	imei_property = tcore_plugin_ref_property(cp, "IMEI");
 	if (imei_property)
 		free(imei_property);
 
-	tcore_modem_free(o);
+	dbg("Exit");
 }
 
-gboolean s_modem_send_poweron(TcorePlugin *p)
+gboolean s_modem_send_poweron(TcorePlugin *cp)
 {
 	UserRequest* ur;
 	TcoreHal* hal;
 	TcorePending *pending = NULL;
 	CoreObject *o;
 
-	char*						cmd_str = NULL;
+	char *cmd_str = NULL;
 	struct ATReqMetaInfo metainfo;
 	int info_len =0;
 
+	o = tcore_plugin_ref_core_object(cp, CORE_OBJECT_TYPE_MODEM);
 	ur = tcore_user_request_new(NULL, NULL);
 
 	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
@@ -733,7 +671,6 @@ gboolean s_modem_send_poweron(TcorePlugin *p)
 
 	dbg("cmd : %s, prefix(if any) :%s, cmd_len : %d",cmd_str, metainfo.responsePrefix, strlen(cmd_str));
 
-	o = tcore_plugin_ref_core_object(p, "modem");
 	hal = tcore_object_get_hal(o);
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);

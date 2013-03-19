@@ -167,7 +167,6 @@ static gboolean _call_request_message(	CoreObject *o,
 										void* user_data)
 {
 	TcorePending *pending = NULL;
-	TcorePlugin *p = NULL;
 	TcoreHal *h = NULL;
 
 	unsigned int info_len = 0;
@@ -192,7 +191,6 @@ static gboolean _call_request_message(	CoreObject *o,
 		tcore_pending_link_user_request(pending, ur);
 	}
 
-	p = tcore_object_ref_plugin(o);
 	h = tcore_object_get_hal(o);
 
 	tcore_hal_send_request(h, pending);
@@ -211,7 +209,7 @@ static void _call_status_idle( TcorePlugin *p, CallObject *co )
 		CoreObject *o = 0;
 		//int id = 0;
 
-		o = tcore_plugin_ref_core_object(p, "call");
+		o = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL);
 
 		data.type = tcore_call_object_get_type( co );
 		dbg("data.type : [%d]", data.type );
@@ -240,7 +238,7 @@ static void _call_status_dialing( TcorePlugin *p, CallObject *co )
 
 	struct tnoti_call_status_dialing data;
 
-	o = tcore_plugin_ref_core_object( p, "call");
+	o = tcore_plugin_ref_core_object( p, CORE_OBJECT_TYPE_CALL);
 
 	if ( tcore_call_object_get_status( co ) != TCORE_CALL_STATUS_DIALING ) {
 
@@ -253,7 +251,7 @@ static void _call_status_dialing( TcorePlugin *p, CallObject *co )
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_DIALING );
 
 		tcore_server_send_notification(	tcore_plugin_ref_server(p),
-									tcore_plugin_ref_core_object(p, "call"),
+									tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL),
 									TNOTI_CALL_STATUS_DIALING,
 									sizeof(struct tnoti_call_status_dialing),
 									(void*)&data );
@@ -270,7 +268,7 @@ static void _call_status_alert( TcorePlugin *p, CallObject *co )
 	CoreObject* o = 0;
 	struct tnoti_call_status_alert data;
 
-	o = tcore_plugin_ref_core_object( p, "call");
+	o = tcore_plugin_ref_core_object( p, CORE_OBJECT_TYPE_CALL);
 
 	if ( tcore_call_object_get_status( co ) != TCORE_CALL_STATUS_ALERT ) {
 
@@ -283,7 +281,7 @@ static void _call_status_alert( TcorePlugin *p, CallObject *co )
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ALERT );
 
 		tcore_server_send_notification(	tcore_plugin_ref_server(p),
-									tcore_plugin_ref_core_object(p, "call"),
+									tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL),
 									TNOTI_CALL_STATUS_ALERT,
 									sizeof(struct tnoti_call_status_alert),
 									(void*)&data );
@@ -310,7 +308,7 @@ static void _call_status_active( TcorePlugin *p, CallObject *co )
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
 
 		tcore_server_send_notification(	tcore_plugin_ref_server(p),
-									tcore_plugin_ref_core_object(p, "call"),
+									tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL),
 									TNOTI_CALL_STATUS_ACTIVE,
 									sizeof(struct tnoti_call_status_active),
 									(void*)&data );
@@ -333,7 +331,7 @@ static void _call_status_held( TcorePlugin *p, CallObject *co )
 		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
 
 		tcore_server_send_notification(	tcore_plugin_ref_server(p),
-									tcore_plugin_ref_core_object(p, "call"),
+									tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL),
 									TNOTI_CALL_STATUS_HELD,
 									sizeof(struct tnoti_call_status_held),
 									(void*)&data );
@@ -345,7 +343,7 @@ static void _call_status_incoming( TcorePlugin *p, CallObject *co )
 {
 	struct tnoti_call_status_incoming data;
 	CoreObject* o = 0;
-	o = tcore_plugin_ref_core_object( p, "call");
+	o = tcore_plugin_ref_core_object( p, CORE_OBJECT_TYPE_CALL);
 
 	if ( tcore_call_object_get_status( co ) != TCORE_CALL_STATUS_INCOMING ) {
 
@@ -374,15 +372,11 @@ static void _call_status_incoming( TcorePlugin *p, CallObject *co )
 		dbg("data.active_line : [%d]", data.active_line );
 
 		tcore_server_send_notification(	tcore_plugin_ref_server(p),
-				tcore_plugin_ref_core_object(p, "call"),
+				tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL),
 				TNOTI_CALL_STATUS_INCOMING,
 				sizeof(struct tnoti_call_status_incoming),
 				(void*)&data	);
 	}
-
-#if 0
-	_call_list_get( o, co );
-#endif
 
 }
 
@@ -1869,498 +1863,18 @@ static struct tcore_call_operations call_ops = {
 	.get_mute_status		= s_call_get_mute_status,
 };
 
-
-static void s_call_info_mo_waiting( CoreObject *o )
+gboolean s_call_init(TcorePlugin *cp, CoreObject *co)
 {
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_WAITING,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_forwarded( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_FORWARDED,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_barred_incoming( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_BARRED_INCOMING,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_barred_outgoing( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_BARRED_OUTGOING,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_deflected( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_DEFLECTED,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_clir_suppression_reject( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_CLIR_SUPPRESSION_REJECT,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_cfu( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_FORWARD_UNCONDITIONAL,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mo_cfc( CoreObject *o )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mo_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_FORWARD_CONDITIONAL,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mt_cli( CoreObject *o, enum tcore_call_cli_mode mode, char* number )
-{
-	CallObject *co = 0;
-
-	co = tcore_call_object_current_on_mt_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	tcore_call_object_set_cli_info( co, mode, number );
-}
-
-static void s_call_info_mt_cna( CoreObject *o, enum tcore_call_cna_mode mode, char* name, int dcs )
-{
-	CallObject *co = 0;
-
-	co = tcore_call_object_current_on_mt_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-	tcore_call_object_set_cna_info( co, mode, name, dcs );
-}
-
-static void s_call_info_mt_forwarded_call( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mt_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_FORWARDED_CALL,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mt_deflected_call( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mt_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_DEFLECTED_CALL,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_mt_transfered( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_current_on_mt_processing( o );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_TRANSFERED_CALL,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_held( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_HELD,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_active( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_ACTIVE,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_joined( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_JOINED,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_released_on_hold( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_RELEASED_ON_HOLD,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_transfer_alert( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_TRANSFER_ALERT,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_transfered( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_TRANSFERED,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-static void s_call_info_cf_check_message( CoreObject *o, char* number )
-{
-	CallObject *co = 0;
-	int id = 0;
-
-	TcorePlugin *p = 0;
-	p = tcore_object_ref_plugin(o);
-
-	co = tcore_call_object_find_by_number( o, number );
-	if ( !co ) {
-		dbg("[ error ] can't find call object!");
-		return ;
-	}
-
-	id = tcore_call_object_get_id( co );
-
-	tcore_server_send_notification(	tcore_plugin_ref_server(p),
-								tcore_plugin_ref_core_object(p, "call"),
-								TNOTI_CALL_INFO_CF_CHECK_MESSAGE,
-								sizeof(unsigned int),
-								(void*)&id	);
-}
-
-
-static struct tcore_call_information_operations call_information_ops = {
-	.mo_call_col				= 0,
-	.mo_call_waiting			= s_call_info_mo_waiting,
-	.mo_call_cug				= 0,
-	.mo_call_forwarded			= s_call_info_mo_forwarded,
-	.mo_call_barred_incoming	= s_call_info_mo_barred_incoming,
-	.mo_call_barred_outgoing	= s_call_info_mo_barred_outgoing,
-	.mo_call_deflected			= s_call_info_mo_deflected,
-	.mo_call_clir_suppression_reject = s_call_info_mo_clir_suppression_reject,
-	.mo_call_cfu				= s_call_info_mo_cfu,
-	.mo_call_cfc				= s_call_info_mo_cfc,
-	.mt_call_cli				= s_call_info_mt_cli,
-	.mt_call_cna				= s_call_info_mt_cna,
-	.mt_call_forwarded_call		= s_call_info_mt_forwarded_call,
-	.mt_call_cug_call			= 0,
-	.mt_call_deflected_call		= s_call_info_mt_deflected_call,
-	.mt_call_transfered			= s_call_info_mt_transfered,
-	.call_held					= s_call_info_held,
-	.call_active				= s_call_info_active,
-	.call_joined				= s_call_info_joined,
-	.call_released_on_hold		= s_call_info_released_on_hold,
-	.call_transfer_alert		= s_call_info_transfer_alert,
-	.call_transfered			= s_call_info_transfered,
-	.call_cf_check_message		= s_call_info_cf_check_message,
-};
-
-gboolean s_call_init(TcorePlugin *p, TcoreHal *h)
-{
-	CoreObject *o = NULL;
-//	TcoreHal *h = NULL;
-	struct property_call_info *data = NULL;
-
-	o = tcore_call_new(p, "call", &call_ops, h);
-	if (!o)
-		return FALSE;
-
-	tcore_call_information_set_operations( o, &call_information_ops );
-
-	tcore_object_add_callback( o, EVENT_CALL_STATUS, on_notification_call_status, NULL );
-	tcore_object_add_callback( o, EVENT_CALL_INCOMING, on_notification_call_incoming, NULL );
-	tcore_object_add_callback( o, EVENT_CALL_WAITING, on_notification_call_waiting, NULL );
-
-	data = calloc( sizeof(struct property_call_info *), 1);
-	tcore_plugin_link_property(p, "CALL", data);
+	tcore_call_override_ops(co, &call_ops, NULL);
+
+	tcore_object_override_callback( co, EVENT_CALL_STATUS, on_notification_call_status, NULL );
+	tcore_object_override_callback( co, EVENT_CALL_INCOMING, on_notification_call_incoming, NULL );
+	tcore_object_override_callback( co, EVENT_CALL_WAITING, on_notification_call_waiting, NULL );
 
 	return TRUE;
 }
 
-void s_call_exit( TcorePlugin *p )
+void s_call_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
-//	TcoreHal *h;
-	struct property_network_info *data;
-
-	o = tcore_plugin_ref_core_object(p, "call");
-
-	data = tcore_plugin_ref_property(p, "CALL");
-	if (data)
-		free(data);
-
-	tcore_call_free(o);
+	dbg("Exit");
 }

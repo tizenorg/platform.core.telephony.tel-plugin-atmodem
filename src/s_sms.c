@@ -301,7 +301,7 @@ static int util_sms_ipcError2SmsError(int err)
 static gboolean on_event_sms_incom_msg(CoreObject *o, const void *event_info, void *user_data)
 {
 	struct smsDeliveryPDU *smsPdu = (struct smsDeliveryPDU *)event_info;
-	struct property_sms_info *property;
+	int *property;
 	struct tnoti_sms_umts_msg gsmMsgInfo;
 
 	int ScLength = 0, i = 0;
@@ -328,7 +328,7 @@ static gboolean on_event_sms_incom_msg(CoreObject *o, const void *event_info, vo
 
 	if ( (gsmMsgInfo.msgInfo.msgLength >0) && (0xff >= gsmMsgInfo.msgInfo.msgLength))
 	{
-		property = tcore_plugin_ref_property(tcore_object_ref_plugin(o), "SMS");
+		property = tcore_plugin_ref_property(tcore_object_ref_plugin(o), "SMSPRECORDLEN");
 		if(!property) {
 			dbg("property is NULL");
 			return TRUE;
@@ -482,8 +482,6 @@ static void on_response_send_smsSubmitTpdu(TcorePending *p, int data_len, const 
 	int error;
 	char *hexData;
 
-	char cSCA = '\0';
-
 	printResponse();
 
 	if(sp_response->success > 0)
@@ -516,44 +514,12 @@ static void on_response_send_smsSubmitTpdu(TcorePending *p, int data_len, const 
 		ur = tcore_pending_ref_user_request(p);
 		if(ur)
 		{
-			memcpy(respUmtsInfo.dataInfo.sca, &cSCA, sizeof(char));
+			respUmtsInfo.result = SMS_SENDSMS_SUCCESS;
 
-			if (ackpdu) {
-				respUmtsInfo.dataInfo.msgLength = strlen(ackpdu);
-			} else {
-				respUmtsInfo.dataInfo.msgLength = 0;
-			}
+			tcore_user_request_send_response(ur, TRESP_SMS_SEND_UMTS_MSG, sizeof(struct tresp_sms_send_umts_msg), &respUmtsInfo);
 
-			if ( (respUmtsInfo.dataInfo.msgLength >= 0) && (0xff >= respUmtsInfo.dataInfo.msgLength))
-			{
-				if(respUmtsInfo.dataInfo.msgLength > SMS_SMDATA_SIZE_MAX)
-				{
-					respUmtsInfo.dataInfo.msgLength = SMS_SMDATA_SIZE_MAX;
-				}
-
-				memcpy(respUmtsInfo.dataInfo.tpduData, ackpdu, respUmtsInfo.dataInfo.msgLength);
-
-				dbg(" MR : %d", mr);
-				dbg(" msg length : %d", respUmtsInfo.dataInfo.msgLength);
-				dbg(" TRESP_SMS_SEND_UMTS_MSG : 0x%x", TRESP_SMS_SEND_UMTS_MSG);
-
-				respUmtsInfo.result = SMS_SENDSMS_SUCCESS;
-
-				tcore_user_request_send_response(ur, TRESP_SMS_SEND_UMTS_MSG, sizeof(struct tresp_sms_send_umts_msg), &respUmtsInfo);
-
-			}
-			else
-			{
-				respUmtsInfo.result = SMS_INVALID_PARAMETER_FORMAT;
-
-				tcore_user_request_send_response(ur, TRESP_SMS_SEND_UMTS_MSG, sizeof(struct tresp_sms_send_umts_msg), &respUmtsInfo);
-
-		}
-		}
-		else
-		{
+		} else
 			dbg("no user_request");
-		}
 	}
 	else
 	{
@@ -831,7 +797,7 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 {
 	UserRequest *ur;
 	struct tresp_sms_get_params respGetSmsParams;
-	struct property_sms_info *property = NULL;
+	int *property = NULL;
 
 	char *line = NULL;
 	int error;
@@ -882,7 +848,7 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 			// respGetSmsParams.paramsInfo.recordIndex = 0;
 			respGetSmsParams.paramsInfo.recordLen = strlen(hexData)/2;
 
-			property = tcore_plugin_ref_property(tcore_object_ref_plugin(tcore_pending_ref_core_object(p)), "SMS");
+			property = tcore_plugin_ref_property(tcore_object_ref_plugin(tcore_pending_ref_core_object(p)), "SMSPRECORDLEN");
 
 			if(!property) {
 				dbg("property is NULL");
@@ -890,8 +856,8 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 				return;
 			}
 
-			util_sms_decode_smsParameters((unsigned char *)recordData, strlen(hexData)/2, &respGetSmsParams.paramsInfo);
-			property->SMSPRecordLen = respGetSmsParams.paramsInfo.recordLen;
+			util_sms_decode_smsParameters((unsigned char *)recordData, strlen(hexData) / 2, &respGetSmsParams.paramsInfo);
+			*property = respGetSmsParams.paramsInfo.recordLen;
 
 			respGetSmsParams.result = SMS_SUCCESS;
 
@@ -975,7 +941,7 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 
 			ptr_data = (unsigned char *)recordData;
 
-			co_sim = tcore_plugin_ref_core_object(tcore_pending_ref_plugin(p), "sim");
+			co_sim = tcore_plugin_ref_core_object(tcore_pending_ref_plugin(p), CORE_OBJECT_TYPE_SIM);
 			if (tcore_sim_get_type(co_sim) == SIM_TYPE_USIM) {
 				/*
 				 ETSI TS 102 221 v7.9.0
@@ -1429,7 +1395,7 @@ static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur)
 				memcpy(&(tpdu[1]), &( sendUmtsMsg->msgDataPackage.sca[1]), (ScLength + 1));
 			}
 
-			if ((ScLength <= SMS_MAX_SMS_SERVICE_CENTER_ADDR) && (sendUmtsMsg->msgDataPackage.msgLength < SMS_SMDATA_SIZE_MAX))
+			if ((ScLength <= SMS_SMSP_ADDRESS_LEN) && (sendUmtsMsg->msgDataPackage.msgLength < SMS_SMDATA_SIZE_MAX))
 			{
 				//1Copy rest of the SMS-SUBMIT TPDU
 				memcpy(&(tpdu[ScLength + 2]), sendUmtsMsg->msgDataPackage.tpduData, sendUmtsMsg->msgDataPackage.msgLength);
@@ -1853,7 +1819,7 @@ static struct tcore_sms_operations sms_ops =
 	.read_msg = read_msg,
 	.save_msg = save_msg,
 	.delete_msg = delete_msg,
-	.get_storedMsgCnt = get_storedMsgCnt,
+	.get_stored_msg_cnt = get_storedMsgCnt,
 	.get_sca = get_sca,
 	.set_sca = set_sca,
 	.get_cb_config = get_cb_config,
@@ -1869,42 +1835,43 @@ static struct tcore_sms_operations sms_ops =
 	.send_cdma_msg = send_cdma_msg,
 };
 
-gboolean s_sms_init(TcorePlugin *p, TcoreHal *h)
+gboolean s_sms_init(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
-	struct property_sms_info *data;
+	int *smsp_record_len;
 	GQueue *work_queue;
 
-	o = tcore_sms_new(p, "umts_sms", &sms_ops, h);
-	if (!o)
-		return FALSE;
+	dbg("Entry");
+
+	/* Override SMS Operations */
+	tcore_sms_override_ops(co, &sms_ops);
 
 	work_queue = g_queue_new();
-	tcore_object_link_user_data(o, work_queue);
+	tcore_object_link_user_data(co, work_queue);
 
-	tcore_object_add_callback(o, EVENT_SMS_INCOM_MSG, on_event_sms_incom_msg, NULL);
-	tcore_object_add_callback(o, EVENT_SMS_DEVICE_READY, on_event_sms_device_ready, NULL);
+	tcore_object_override_callback(co, EVENT_SMS_INCOM_MSG, on_event_sms_incom_msg, NULL);
+	tcore_object_override_callback(co, EVENT_SMS_DEVICE_READY, on_event_sms_device_ready, NULL);
 
-	data = calloc(sizeof(struct property_sms_info), 1);
-	tcore_plugin_link_property(p, "SMS", data);
+	/* Storing SMSP record length */
+	smsp_record_len = g_new0(int, 1);
+	tcore_plugin_link_property(cp, "SMSPRECORDLEN", smsp_record_len);
+
+	dbg("Exit");
 
 	return TRUE;
 }
 
-
-void s_sms_exit(TcorePlugin *p)
+void s_sms_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
-	struct property_sms_info *data;
+	GQueue *work_queue;
+	int *smsp_record_len;
 
-	o = tcore_plugin_ref_core_object(p, "umts_sms");
-	if (!o)
-		return;
+	smsp_record_len = tcore_plugin_ref_property(cp, "SMSPRECORDLEN");
+	g_free(smsp_record_len);
 
-	data = tcore_plugin_ref_property(p, "SMS");
-	if (data)
-		free(data);
+	work_queue = tcore_object_ref_user_data(co);
+	if (work_queue)
+		g_queue_free(work_queue);
 
-	tcore_sms_free(o);
+	dbg("Exit");
 }
 

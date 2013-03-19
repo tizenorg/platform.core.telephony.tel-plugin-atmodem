@@ -2630,33 +2630,35 @@ static struct tcore_sim_operations sim_ops =
 		.req_authentication = s_req_authentication
 };
 
-gboolean s_sim_init(TcorePlugin *p, TcoreHal *h)
+gboolean s_sim_init(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
 	struct s_sim_property *sp = NULL;
 
-	o = tcore_sim_new(p, "sim", &sim_ops, h);
-	if (!o)
-		return FALSE;
+	dbg("Entry");
+
+	tcore_sim_override_ops(co, &sim_ops);
 
 	sp = calloc(sizeof(struct s_sim_property),1);
 	if (!sp)
 		return FALSE;
 
 	sp->first_recv_status = SIM_STATUS_UNKNOWN;
-	tcore_sim_link_userdata(o, sp);
+	tcore_sim_link_userdata(co, sp);
 
-	tcore_object_add_callback(o, EVENT_SIM_PIN_STATUS, on_event_pin_status, NULL);
+	tcore_object_override_callback(co, EVENT_SIM_PIN_STATUS, on_event_pin_status, NULL);
+
+	dbg("Exit");
+
 	return TRUE;
 }
 
 
-void s_sim_exit(TcorePlugin *p)
+void s_sim_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
+	struct s_sim_property *sp = tcore_object_ref_user_data(co);
 
-	o = tcore_plugin_ref_core_object(p, "sim");
-	if (!o)
-		return;
-	tcore_sim_free(o);
+	if (sp)
+		free(sp);
+
+	dbg("Exit");
 }

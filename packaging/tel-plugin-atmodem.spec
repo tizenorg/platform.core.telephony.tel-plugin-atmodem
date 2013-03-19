@@ -56,6 +56,6 @@ mkdir -p %{buildroot}/usr/share/license
 %manifest tel-plugin-atmodem.manifest
 %defattr(-,root,root,-)
 #%doc COPYING
-%{_libdir}/telephony/plugins/atmodem-plugin*
+%{_libdir}/telephony/plugins/modems/atmodem-plugin*
 /tmp/mcc_mnc_oper_list.sql
 /usr/share/license/tel-plugin-atmodem

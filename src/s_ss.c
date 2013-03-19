@@ -259,7 +259,7 @@ static void _ss_ussd_notification( TcorePlugin *p, const char* ussd_str, enum te
 
 	}
 
-	o = tcore_plugin_ref_core_object(p, "ss");
+	o = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_SS);
 
 	tcore_server_send_notification(	tcore_plugin_ref_server(p),
 			o,
@@ -428,7 +428,7 @@ static gboolean on_notification_ss_info( CoreObject *o, const void *data, void *
 
 
 	p	= tcore_object_ref_plugin( o );
-	co	= tcore_plugin_ref_core_object( p, "call" );
+	co	= tcore_plugin_ref_core_object( p, CORE_OBJECT_TYPE_CALL );
 	if (!co) {
 		dbg("[ error ] plugin_ref_core_object : call");
 		return TRUE;
@@ -2495,130 +2495,31 @@ static TReturn s_ss_manage_call_4dn_send( CoreObject* o, UserRequest* ur, const 
 	return TCORE_RETURN_SUCCESS;
 }
 
-#if 0
-static TReturn s_ss_manage_call_5_send( CoreObject* o, UserRequest* ur, ConfirmCallback cb, void* user_data )
+gboolean s_ss_init(TcorePlugin *cp, CoreObject *co)
 {
-	TcorePlugin *p = NULL;
-	TcoreHal *h = NULL;
-	TcorePending *pending = NULL;
-	char*						cmd_str = NULL;
-	struct ATReqMetaInfo metainfo;
-	int info_len =0;
+	CoreObject *co_call;
 
-	p = tcore_object_ref_plugin(o);
-	h = tcore_object_get_hal(o);
+	dbg("Entry");
 
-	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
-	metainfo.type = NO_RESULT;
-	metainfo.responsePrefix[0] ='\0';
-	info_len = sizeof(struct ATReqMetaInfo);
+	tcore_ss_override_ops(co, &ss_ops);
 
-	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-
-
-	cmd_str = g_strdup_printf("%s%s", "AT+CHLD=5", "\r");
-
-	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
-
-	pending = tcore_pending_new(o, ID_RESERVED_AT);
-	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
-	g_free(cmd_str);
-	tcore_pending_set_timeout(pending, 0);
-	tcore_pending_set_response_callback(pending, (TcorePendingResponseCallback)cb, user_data);
-	tcore_pending_link_user_request(pending, ur);
-	tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
-
-	tcore_pending_set_send_callback(pending, on_confirmation_call_control_ss_message_send, NULL);
-
-
-	tcore_hal_send_request(h, pending);
-
-	return TCORE_RETURN_SUCCESS;
-}
-
-static TReturn s_ss_manage_call_6_send( CoreObject* o, UserRequest* ur, ConfirmCallback cb, void* user_data )
-{
-	TcorePlugin *p = NULL;
-	TcoreHal *h = NULL;
-	TcorePending *pending = NULL;
-	char*						cmd_str = NULL;
-	struct ATReqMetaInfo metainfo;
-	int info_len =0;
-
-	p = tcore_object_ref_plugin(o);
-	h = tcore_object_get_hal(o);
-
-	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
-	metainfo.type = NO_RESULT;
-	metainfo.responsePrefix[0] ='\0';
-	info_len = sizeof(struct ATReqMetaInfo);
-
-	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
-
-
-	cmd_str= g_strdup_printf("%s%s", "AT+CHLD=6", "\r");
-
-	dbg("cmd : %s, prefix(if any) : %s, cmd_len : %d",cmd_str, "N/A", strlen(cmd_str));
-
-	pending = tcore_pending_new(o, ID_RESERVED_AT);
-	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
-	g_free(cmd_str);
-	tcore_pending_set_timeout(pending, 0);
-	tcore_pending_set_response_callback(pending, (TcorePendingResponseCallback)cb, user_data);
-	tcore_pending_link_user_request(pending, ur);
-	tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
-
-	tcore_pending_set_send_callback(pending, on_confirmation_call_control_ss_message_send, NULL);
-
-
-	tcore_hal_send_request(h, pending);
-
-	return TCORE_RETURN_SUCCESS;
-}
-#endif
-
-
-gboolean s_ss_init(TcorePlugin *p, TcoreHal *h)
-{
-	CoreObject *so = 0, *co = 0;
-	struct property_call_info *data = 0;
-
-	dbg("s_ss_init()");
-
-	so = tcore_ss_new(p, "ss", &ss_ops, h);
-	if (!so) {
-		dbg("[ error ] ss_new()");
+	co_call = tcore_plugin_ref_core_object(cp, CORE_OBJECT_TYPE_CALL);
+	if (co_call == NULL) {
+		err("Can't find CALL core object");
 		return FALSE;
 	}
 
-	co = tcore_plugin_ref_core_object(p, "call");
-	if (!co) {
-		dbg("[ error ] plugin_ref_core_object");
-		return FALSE;
-	}
+	tcore_call_override_ops(co_call, NULL, &call_ops);
 
-	tcore_call_control_set_operations( co, &call_ops );
+	tcore_object_add_callback(co, EVENT_SS_INFO, on_notification_ss_info, 0);
+	tcore_object_add_callback(co, EVENT_SS_USSD, on_notification_ss_ussd, 0);
 
-	tcore_object_add_callback( so, EVENT_SS_INFO, on_notification_ss_info, 0 );
-	tcore_object_add_callback( so, EVENT_SS_USSD, on_notification_ss_ussd, 0 );
-
-	data = calloc( sizeof(struct property_call_info *), 1);
-	tcore_plugin_link_property(p, "SS", data);
+	dbg("Exit");
 
 	return TRUE;
 }
 
-void s_ss_exit( TcorePlugin *p )
+void s_ss_exit(TcorePlugin *cp, CoreObject *co)
 {
-	CoreObject *o;
-//	TcoreHal *h;
-	struct property_network_info *data;
-
-	o = tcore_plugin_ref_core_object(p, "ss");
-
-	data = tcore_plugin_ref_property(p, "SS");
-	if (data)
-		free(data);
-
-	tcore_ss_free(o);
+	dbg("Exit");
 }
