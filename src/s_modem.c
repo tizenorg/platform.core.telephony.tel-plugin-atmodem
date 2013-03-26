@@ -201,10 +201,9 @@ static gboolean on_event_modem_phone_state(CoreObject *o, const void *event_info
 	UserRequest *ur;
 	int err, status;
 	struct tresp_modem_set_flightmode res;
-	struct tnoti_modem_flight_mode modem_flight_mode;
 	const struct treq_modem_set_flightmode *req_data = NULL;
-#define SCFUN_MIN_FUNC 0
-#define SCFUN_FULL_FUNC 1
+	#define SCFUN_MIN_FUNC 0
+	#define SCFUN_FULL_FUNC 1
 
 	dbg("received notification : %s", line);
 
@@ -227,23 +226,18 @@ static gboolean on_event_modem_phone_state(CoreObject *o, const void *event_info
 	queue = tcore_object_ref_user_data(o);
 	if (queue) {
 		ur = util_pop_waiting_job(queue, ID_RESERVED_AT);
-		if (ur) {
+		if (tcore_user_request_ref_communicator(ur)) {
 			req_data = tcore_user_request_ref_data(ur, NULL);
-
-			if (TRUE == req_data->enable)
+			if (TRUE == req_data->enable) {
 				res.result = 1;
-			else
+				tcore_modem_set_flight_mode_state(o, TRUE);
+			} else {
 				res.result = 2;
-
+				tcore_modem_set_flight_mode_state(o, FALSE);
+			}
 			tcore_user_request_send_response(ur, TRESP_MODEM_SET_FLIGHTMODE, sizeof(struct tresp_modem_set_flightmode), &res);
 		}
 	}
-
-	modem_flight_mode.enable = tcore_modem_get_flight_mode_state(o);
-
-	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o, TNOTI_MODEM_FLIGHT_MODE,
-			sizeof(struct tnoti_modem_flight_mode), &modem_flight_mode);
-
 	return TRUE;
 }
 
