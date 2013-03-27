@@ -168,7 +168,7 @@ static void on_event_ps_ipconfiguration(CoreObject *o, const void *event_info, v
 
 			(void)tcore_context_set_ipv4_addr(ps_context, (const char *)ip);
 
-			dbg("Adding default DNS pri: 8.8.8.8 sec: 8.8.4.4")
+			dbg("Adding default DNS pri: 8.8.8.8 sec: 8.8.4.4");
 
 			tcore_context_set_ipv4_dns(ps_context, "8.8.8.8", "8.8.4.4");
 

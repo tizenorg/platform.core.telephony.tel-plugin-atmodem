@@ -413,7 +413,7 @@ static int _sim_get_current_pin_facility(struct s_sim_property *sp)
 			break;
 
 		default:
-			dbg("not handled current op[%d]",sp->current_sec_op )
+			dbg("not handled current op[%d]",sp->current_sec_op );
 			break;
 	}
 	return ret_type;

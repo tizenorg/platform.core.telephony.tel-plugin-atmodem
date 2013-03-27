@@ -782,7 +782,7 @@ error:
 	}
 	else
 	{
-		dbg("no active status - return to user")
+		dbg("no active status - return to user");
 	}
 
 	if(sp_response->success > 0){
@@ -988,7 +988,7 @@ error:
 	}
 	else
 	{
-		dbg("no active status - return to user")
+		dbg("no active status - return to user");
 	}
 
 	if(sp_response->success > 0){
@@ -1152,7 +1152,7 @@ error:
 	}
 	else
 	{
-		dbg("no active status - return to user")
+		dbg("no active status - return to user");
 	}
 
 	if(sp_response->success > 0){
