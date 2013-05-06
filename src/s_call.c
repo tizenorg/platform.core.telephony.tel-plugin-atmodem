@@ -201,16 +201,12 @@ static gboolean _call_request_message(	CoreObject *o,
 static void _call_status_idle( TcorePlugin *p, CallObject *co )
 {
 	struct tnoti_call_status_idle data;
+	CoreObject *o;
 
+	o = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL);
 	dbg("call id [%d], call status [%d]", tcore_call_object_get_id(co), tcore_call_object_get_status(co));
 
 	if ( tcore_call_object_get_status( co ) != TCORE_CALL_STATUS_IDLE ) {
-
-		CoreObject *o = 0;
-		//int id = 0;
-
-		o = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_CALL);
-
 		data.type = tcore_call_object_get_type( co );
 		dbg("data.type : [%d]", data.type );
 
@@ -227,8 +223,8 @@ static void _call_status_idle( TcorePlugin *p, CallObject *co )
 
 		tcore_call_object_free( o, co );
 	} else {
-
-		dbg("[ error ] call object was not free");
+		dbg("call object was freed");
+		tcore_call_object_free(o, co);
 	}
 }
 
