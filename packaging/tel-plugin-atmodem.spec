@@ -6,6 +6,7 @@ Release:    1
 Group:      System/Libraries
 License:    Apache
 Source0:    tel-plugin-atmodem-%{version}.tar.gz
+Source1001: 	tel-plugin-atmodem.manifest
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  cmake
@@ -18,6 +19,7 @@ Telephony AT Modem library
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
 %build
 cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
@@ -53,7 +55,7 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/share/license
 
 %files
-%manifest tel-plugin-atmodem.manifest
+%manifest %{name}.manifest
 %defattr(-,root,root,-)
 #%doc COPYING
 %{_libdir}/telephony/plugins/modems/atmodem-plugin*
