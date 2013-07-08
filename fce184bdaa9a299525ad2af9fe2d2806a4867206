@@ -1,0 +1,8 @@
+Change-Id: Ifce184bdaa9a299525ad2af9fe2d2806a4867206
+Code-Review+2: Ryan Ware <ware@linux.intel.com>
+Verified+1: Ryan Ware <ware@linux.intel.com>
+Submitted-by: Ryan Ware <ware@linux.intel.com>
+Submitted-at: Mon, 08 Jul 2013 10:06:51 -0700
+Reviewed-on: https://review.tizen.org/gerrit/4531
+Project: platform/core/telephony/tel-plugin-atmodem
+Branch: refs/heads/tizen
