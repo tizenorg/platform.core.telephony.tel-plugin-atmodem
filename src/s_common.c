@@ -29,6 +29,79 @@
 
 #include <plugin.h>
 
+#undef	MAX
+#define	MAX(a, b)	(((a) > (b)) ? (a) : (b))
+
+#define	bitsize(type) (sizeof(type) * 8)
+
+#define	copymask(type) ((0xffffffff) >> (32 - bitsize(type)))
+
+#define	MASK(width, offset, data) \
+	(((width) == bitsize(data)) ? (data) :   \
+	((((copymask(data) << (bitsize(data) - ((width) % bitsize(data)))) & copymask(data)) >> (offset)) & (data))) \
+
+
+#define MASK_AND_SHIFT(width, offset, shift, data) \
+	((((signed) (shift)) < 0) ? \
+	MASK((width), (offset), (data)) << -(shift) : \
+	MASK((width), (offset), (data)) >> (((signed) (shift)))) \
+
+char _util_unpackb(const char *src, int pos, int len);
+char _util_convert_byte_hexChar(char val);
+gboolean util_byte_to_hex(const char *byte_pdu, char *hex_pdu, int num_bytes);
+
+char _util_unpackb(const char *src, int pos, int len)
+{
+	char result = 0;
+	int rshift = 0;
+
+	src += pos / 8;
+	pos %= 8;
+
+	rshift = MAX(8 - (pos + len), 0);
+
+	if (rshift > 0) {
+		result = MASK_AND_SHIFT(len, pos, rshift, (unsigned char)*src);
+	} else {
+		result = MASK(8 - pos, pos, (unsigned char)*src);
+		src++;
+		len -= 8 - pos;
+
+		if (len > 0) result = (result << len) | (*src >> (8 - len));   // if any bits left
+	}
+
+	return result;
+}
+
+char _util_convert_byte_hexChar(char val)
+{
+	char hex_char;
+
+	if (val <= 9) {
+		hex_char = (char) (val + '0');
+	} else if (val >= 10 && val <= 15) {
+		hex_char = (char) (val - 10 + 'A');
+	} else {
+		hex_char = '0';
+}
+
+	return (hex_char);
+}
+
+gboolean util_byte_to_hex(const char *byte_pdu, char *hex_pdu, int num_bytes)
+{
+	int i;
+	char nibble;
+	int buf_pos = 0;
+
+        for (i = 0; i < num_bytes * 2; i++) {
+		nibble = _util_unpackb(byte_pdu, buf_pos, 4);
+		buf_pos += 4;
+		hex_pdu[i] = _util_convert_byte_hexChar(nibble);
+	}
+
+	return TRUE;
+}
 
 void util_hex_dump(char *pad, int size, const void *data)
 {

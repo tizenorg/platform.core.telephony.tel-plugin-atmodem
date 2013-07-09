@@ -55,6 +55,8 @@ extern struct ATResponse *sp_response;
 extern char *s_responsePrefix;
 extern enum ATCommandType s_type;
 
+gboolean util_byte_to_hex(const char *byte_pdu, char *hex_pdu, int num_bytes);
+
 static TReturn Send_SmsSubmitTpdu(CoreObject *o, UserRequest *ur);
 
 /************************************************************/
@@ -888,6 +890,49 @@ static void on_response_get_sms_params(TcorePending *p, int data_len, const void
 	return;
 }
 
+static void on_response_set_sms_params(TcorePending *p, int data_len,
+					const void *data, void *user_data)
+{
+	char *line;
+	int sw1, sw2;
+	int ret;
+	struct tresp_sms_set_params respSetParams;
+	UserRequest *ur = tcore_pending_ref_user_request(p);
+
+	memset(&respSetParams, 0, sizeof(struct tresp_sms_set_params));
+	respSetParams.result = SMS_DEVICE_FAILURE;
+
+	if (sp_response->success != TRUE) {
+		dbg("Response NOK");
+		goto OUT;
+	}
+
+	dbg("Response OK");
+
+	line = sp_response->p_intermediates->line;
+	ret = at_tok_start(&line);
+	if (ret < 0)
+		AT_TOK_ERROR(line);
+
+	ret = at_tok_nextint(&line, &sw1);
+	if (ret < 0)
+		AT_TOK_ERROR(line);
+
+	ret = at_tok_nextint(&line, &sw2);
+	if (ret < 0)
+		AT_TOK_ERROR(line);
+
+	if ((sw1 == 0x90 && sw2 == 0x00) || sw1 == 0x91)
+		respSetParams.result = SMS_SENDSMS_SUCCESS;
+
+OUT:
+	ReleaseResponse();
+	tcore_user_request_send_response(ur, TRESP_SMS_SET_PARAMS,
+			sizeof(struct tresp_sms_set_params), &respSetParams);
+
+	return;
+}
+
 static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *data, void *user_data)
 {
 	UserRequest *ur;
@@ -897,6 +942,8 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 	int ret = 0;
 	int sw1 = 0;
 	int sw2 = 0;
+	int *smsp_record_len;
+	TcorePlugin *plugin = tcore_pending_ref_plugin(p);
 
 	ur = tcore_pending_ref_user_request(p);
 
@@ -1261,6 +1308,9 @@ static void on_response_get_paramcnt(TcorePending *p, int data_len, const void *
 
 			respGetParamCnt.recordCount = num_of_records;
 			respGetParamCnt.result = SMS_SUCCESS;
+
+			smsp_record_len = tcore_plugin_ref_property(plugin, "SMSPRECORDLEN");
+			memcpy(smsp_record_len, &record_len, sizeof(int));
 
 			free(recordData);
 		}
@@ -1764,8 +1814,56 @@ static TReturn get_sms_params(CoreObject *o, UserRequest *ur)
 
 static TReturn set_sms_params(CoreObject *o, UserRequest *ur)
 {
-	dbg("[tcore_SMS] Not supported");
-	return TCORE_RETURN_ENOSYS;
+	TcorePending *pending;
+	const struct treq_sms_set_params *setSmsParams;
+	struct ATReqMetaInfo metainfo;
+	int *smsp_record_len;
+	int SMSPRecordLen;
+	unsigned char *temp_data;
+	char *encoded_data;
+	int info_len;
+	char *cmd_str;
+	int encoded_data_len;
+	TcorePlugin *plugin = tcore_object_ref_plugin(o);
+	TcoreHal *hal = tcore_object_get_hal(o);
+
+	dbg("Enter");
+
+	setSmsParams = tcore_user_request_ref_data(ur, NULL);
+	smsp_record_len = tcore_plugin_ref_property(plugin, "SMSPRECORDLEN");
+	SMSPRecordLen = *smsp_record_len;
+
+	memset(&metainfo, 0, sizeof(struct ATReqMetaInfo));
+	metainfo.type = SINGLELINE;
+	memcpy(metainfo.responsePrefix, "+CRSM:", strlen("+CRSM:"));
+	info_len = sizeof(struct ATReqMetaInfo);
+	tcore_user_request_set_metainfo(ur, info_len, &metainfo);
+
+	temp_data = calloc(SMSPRecordLen, 1);
+	encoded_data = calloc(SMSPRecordLen * 2 + 1, 1);
+
+	_tcore_util_sms_encode_smsParameters(&(setSmsParams->params),
+						temp_data, SMSPRecordLen);
+	util_byte_to_hex((const char *)temp_data,
+				(char *)encoded_data, SMSPRecordLen);
+
+	encoded_data_len = SMSPRecordLen * 2;
+
+	cmd_str = g_strdup_printf("AT+CRSM=220,28482,%d,4,%d,\"%s%s\"",
+					setSmsParams->params.recordIndex + 1,
+					SMSPRecordLen, encoded_data, "\r");
+
+	pending = tcore_pending_new(o, ID_RESERVED_AT);
+	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
+	tcore_pending_set_response_callback(pending, on_response_set_sms_params, NULL);
+	tcore_pending_link_user_request(pending, ur);
+	tcore_pending_set_send_callback(pending, on_confirmation_sms_message_send, NULL);
+
+	free(cmd_str);
+	free(temp_data);
+	free(encoded_data);
+
+	return tcore_hal_send_request(hal, pending);
 }
 
 static TReturn get_paramcnt(CoreObject *o, UserRequest *ur)
