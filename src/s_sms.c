@@ -1849,9 +1849,9 @@ static TReturn set_sms_params(CoreObject *o, UserRequest *ur)
 
 	encoded_data_len = SMSPRecordLen * 2;
 
-	cmd_str = g_strdup_printf("AT+CRSM=220,28482,%d,4,%d,\"%s%s\"",
+	cmd_str = g_strdup_printf("AT+CRSM=220,28482,%d,4,%d,\"%s\"\r",
 					setSmsParams->params.recordIndex + 1,
-					SMSPRecordLen, encoded_data, "\r");
+					SMSPRecordLen, encoded_data);
 
 	pending = tcore_pending_new(o, ID_RESERVED_AT);
 	tcore_pending_set_request_data(pending, strlen(cmd_str), cmd_str);
