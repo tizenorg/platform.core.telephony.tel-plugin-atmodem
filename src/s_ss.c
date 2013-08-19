@@ -1057,6 +1057,7 @@ static void on_response_ss_waiting_get( TcorePending *p, int data_len, const voi
 	struct ss_confirm_info* info = 0;
 	struct tresp_ss_waiting resp;
 	int countRecords=0, countValidRecords =0;
+	char *line;
 
 	o  = tcore_pending_ref_core_object(p);
 	ur = tcore_pending_ref_user_request(p);
@@ -1086,13 +1087,14 @@ static void on_response_ss_waiting_get( TcorePending *p, int data_len, const voi
 				; p_cur != NULL
 				; p_cur = p_cur->p_next)
 		{
-			err = at_tok_start(&(p_cur->line));
+			line = p_cur->line;
+			err = at_tok_start(&line);
 			if (err < 0){
 				dbg("start line error. skip this line");
 				goto error;
 			}
 
-			err = at_tok_nextint(&(p_cur->line), &status);// status
+			err = at_tok_nextint(&line, &status);// status
 			if (err < 0) {
 				dbg("status error. skip this line");
 				goto error;
@@ -1105,7 +1107,7 @@ static void on_response_ss_waiting_get( TcorePending *p, int data_len, const voi
 				resp.record[countValidRecords].status = SS_STATUS_DEACTIVATE;
 			}
 
-			err = at_tok_nextint(&(p_cur->line), &classx); //class
+			err = at_tok_nextint(&line, &classx); //class
 			if (err < 0) {
 				dbg("class error. skip this line");
 				goto error;
