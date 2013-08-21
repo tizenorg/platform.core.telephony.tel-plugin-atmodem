@@ -1,7 +1,7 @@
 #sbs-git:slp/pkgs/t/tel-plugin-atmodem
 Name: tel-plugin-atmodem
 Summary: Telephony AT Modem library
-Version: 0.1.39
+Version: 0.1.40
 Release:    1
 Group:      System/Libraries
 License:    Apache

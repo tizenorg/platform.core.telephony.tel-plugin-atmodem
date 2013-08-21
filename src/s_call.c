@@ -1322,7 +1322,7 @@ static gboolean on_notification_call_waiting( CoreObject *o, const void *data, v
 	tcore_call_object_set_cli_info(co, TCORE_CALL_CLI_MODE_DEFAULT,  num);
 	tcore_call_object_set_active_line(co, LINE_DEFAULT);
 
-	_call_list_get( o, co );
+	_call_status_incoming(plugin, co);
 
 	return TRUE;
 }
@@ -1382,7 +1382,7 @@ static gboolean on_notification_call_incoming( CoreObject *o, const void *data, 
 	tcore_call_object_set_cli_info(co, TCORE_CALL_CLI_MODE_DEFAULT,  num);
 	tcore_call_object_set_active_line(co, LINE_DEFAULT);
 
-	_call_list_get( o, co );
+	_call_status_incoming(plugin, co);
 
 	return TRUE;
 }
@@ -1695,8 +1695,34 @@ static TReturn s_call_hold( CoreObject *o, UserRequest *ur )
 {
 	struct treq_call_hold *hold = 0;
 	CallObject *co = 0;
+	GSList *list_active, *list_incoming, *list_held;
 
 	hold = (struct treq_call_hold*)tcore_user_request_ref_data( ur, 0 );
+
+	/*
+	 * When Incoming Call and Outgoing Call operates concurrently with one
+	 * already exist Call. Telephony intend to having one Active Call and
+	 * one Incoming Call. But, at that time, Application does not received
+	 * Incoming Call Notification. Therefore, Application call
+	 * tel_hold_call() to hold already exist Active Call. At this point,
+	 * Telephony should reject the request of tel_hold_call() because
+	 * tel_hold_call() sends AT+CHLD=2 which means "place active call on
+	 * hold and accepts the incoming call".
+	 */
+	list_active = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_ACTIVE);
+	list_incoming = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_INCOMING);
+	list_held = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_HELD);
+	if (!(list_active != NULL && list_incoming == NULL && list_held == NULL)) {
+		struct tresp_call_hold resp;
+
+		dbg("Hold Call operation is not allowed");
+
+		resp.err = CALL_ERROR_SERVICE_NOT_ALLOWED;
+		resp.id = hold->id;
+		tcore_user_request_send_response(ur, TRESP_CALL_HOLD, sizeof(resp), &resp);
+
+		return TCORE_RETURN_FAILURE;
+	}
 
 	dbg("call id : [ %d ]", hold->id);
 
