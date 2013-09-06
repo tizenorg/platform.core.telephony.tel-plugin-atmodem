@@ -17,7 +17,7 @@ ENDFOREACH(flag)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include/)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS} -Werror -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wdeclaration-after-statement -Wmissing-declarations -Wredundant-decls -Wcast-align")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS} -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wdeclaration-after-statement -Wmissing-declarations -Wredundant-decls -Wcast-align")
 
 ADD_DEFINITIONS("-DFEATURE_DLOG_DEBUG")
 ADD_DEFINITIONS("-DTCORE_LOG_TAG=\"TEL_PLUGIN_ATMODEM\"")
