@@ -806,19 +806,22 @@ static void on_confirmation_call_hold( TcorePending *p, int data_len, const void
 		GSList *active = 0;
 		CallObject *co = 0;
 
+		dbg("set hold status");
 		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
 		if ( !active ) {
 			dbg("[ error ] can't find active call");
 			return ;
 		}
 
-		co = (CallObject*)active->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			return ;
+		while (active) {
+			co = (CallObject*)active->data;
+			if ( !co ) {
+				dbg("[ error ] can't get active call object");
+				return ;
+			}
+			tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+			active = g_slist_next(active);
 		}
-
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
 	}
 
 }
@@ -849,7 +852,26 @@ static void on_confirmation_call_active( TcorePending *p, int data_len, const vo
 		dbg("[ error ] ur is NULL");
 		return ;
 	}
+	if ( !resp.err ) {
 
+		GSList *active = 0;
+		CallObject *co = 0;
+		dbg("set active status");
+		active = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_HELD);
+		if ( !active ) {
+			dbg("[ error ] can't find active call");
+			return ;
+		}
+		while (active) {
+			co = (CallObject*)active->data;
+			if ( !co ) {
+				dbg("[ error ] can't get active call object");
+				return ;
+				}
+			tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
+			active = g_slist_next(active);
+		}
+	}
 }
 
 static void on_confirmation_call_swap( TcorePending *p, int data_len, const void *data, void *user_data )
@@ -1737,8 +1759,24 @@ static TReturn s_call_active( CoreObject *o, UserRequest *ur )
 {
 	struct treq_call_active *active = 0;
 	CallObject *co = 0;
+	GSList *list_active, *list_incoming, *list_held;
 
 	active = (struct treq_call_active*)tcore_user_request_ref_data( ur, 0 );
+
+	list_active = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_ACTIVE);
+	list_incoming = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_INCOMING);
+	list_held = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_HELD);
+	if (!(list_held != NULL && list_incoming == NULL && list_active == NULL)) {
+		struct tresp_call_active resp;
+
+		dbg("Active Call operation is not allowed");
+
+		resp.err = CALL_ERROR_SERVICE_NOT_ALLOWED;
+		resp.id = active->id;
+		tcore_user_request_send_response(ur, TRESP_CALL_ACTIVE, sizeof(resp), &resp);
+
+		return TCORE_RETURN_FAILURE;
+	}
 
 	dbg("call id : [ %d ]", active->id);
 
