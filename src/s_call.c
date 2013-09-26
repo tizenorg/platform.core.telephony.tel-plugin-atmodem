@@ -636,20 +636,23 @@ static void on_confirmation_call_hold_and_accept( TcorePending *p, int data_len,
 
 		GSList *l = 0;
 		CallObject *co = 0;
+		dbg("set hold with already active calls and accept incoming call");
 
 		l = tcore_call_object_find_by_status( o, TCORE_CALL_STATUS_ACTIVE );
 		if ( !l ) {
 			dbg("[ error ] can't find active call");
 			return ;
 		}
-
-		co = (CallObject*)l->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			return ;
+		while (l) {
+			co = (CallObject*)l->data;
+			if ( !co ) {
+				dbg("[ error ] can't get active call object");
+				return ;
+			}
+			tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+			l = g_slist_next(l);
 		}
-
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+		g_slist_free(l);
 	}
 }
 
@@ -920,27 +923,31 @@ static void on_confirmation_call_swap( TcorePending *p, int data_len, const void
 			return ;
 		}
 
-		co = (CallObject*)held->data;
-		if ( !co ) {
-			dbg("[ error ] can't get held call object");
-			return ;
+		while (held){
+			co = (CallObject*)held->data;
+			if ( !co ) {
+				dbg("[ error ] can't get held call object");
+				return ;
+			}
+			resp.id =  tcore_call_object_get_id( co );
+			tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
+			tcore_user_request_send_response(ur, TRESP_CALL_ACTIVE, sizeof(struct tresp_call_active), &resp);
+			held = g_slist_next(held);
 		}
+		g_slist_free(held);
 
-		resp.id	 =  tcore_call_object_get_id( co );
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_ACTIVE );
-
-		tcore_user_request_send_response(ur, TRESP_CALL_ACTIVE, sizeof(struct tresp_call_active), &resp);
-
-		co = (CallObject*)active->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			return ;
+		while (active){
+			co = (CallObject*)active->data;
+			if ( !co ) {
+				dbg("[ error ] can't get active call object");
+				return ;
+			}
+			resp.id =  tcore_call_object_get_id( co );
+			tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+			tcore_user_request_send_response(ur, TRESP_CALL_HOLD, sizeof(struct tresp_call_hold), &resp);
+			active = g_slist_next(active);
 		}
-
-		resp.id	 =  tcore_call_object_get_id( co );
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
-
-		tcore_user_request_send_response(ur, TRESP_CALL_HOLD, sizeof(struct tresp_call_hold), &resp);
+		g_slist_free(active);
 	}
 }
 
@@ -1012,14 +1019,16 @@ static void on_confirmation_call_split( TcorePending *p, int data_len, const voi
 			dbg("[ error ] can't find active call");
 			return ;
 		}
-
-		co = (CallObject*)active->data;
-		if ( !co ) {
-			dbg("[ error ] can't get active call object");
-			return ;
+		while (active){
+			co = (CallObject*)active->data;
+			if ( !co ) {
+				dbg("[ error ] can't get active call object");
+				return ;
+			}
+			tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+			active = g_slist_next(active);
 		}
-
-		tcore_call_object_set_status( co, TCORE_CALL_STATUS_HELD );
+		g_slist_free(active);
 		tcore_call_object_set_status( (CallObject*)user_data, TCORE_CALL_STATUS_ACTIVE );
 	}
 }
@@ -1762,10 +1771,12 @@ static TReturn s_call_active( CoreObject *o, UserRequest *ur )
 	GSList *list_active, *list_incoming, *list_held;
 
 	active = (struct treq_call_active*)tcore_user_request_ref_data( ur, 0 );
+	dbg("Active ID = %d", active->id);
 
 	list_active = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_ACTIVE);
 	list_incoming = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_INCOMING);
 	list_held = tcore_call_object_find_by_status(o, TCORE_CALL_STATUS_HELD);
+
 	if (!(list_held != NULL && list_incoming == NULL && list_active == NULL)) {
 		struct tresp_call_active resp;
 
