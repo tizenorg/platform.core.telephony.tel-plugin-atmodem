@@ -4,7 +4,7 @@ Summary: Telephony AT Modem library
 Version: 0.1.40
 Release:    1
 Group:      System/Libraries
-License:    Apache
+License:    Apache-2.0
 Source0:    tel-plugin-atmodem-%{version}.tar.gz
 Source1001: 	tel-plugin-atmodem.manifest
 Requires(post): /sbin/ldconfig
@@ -53,6 +53,7 @@ fi
 rm -rf %{buildroot}
 %make_install
 mkdir -p %{buildroot}/usr/share/license
+cp LICENSE %{buildroot}/usr/share/license/%{name}
 
 %files
 %manifest %{name}.manifest
@@ -60,4 +61,4 @@ mkdir -p %{buildroot}/usr/share/license
 #%doc COPYING
 %{_libdir}/telephony/plugins/modems/atmodem-plugin*
 /tmp/mcc_mnc_oper_list.sql
-/usr/share/license/tel-plugin-atmodem
+/usr/share/license/%{name}
