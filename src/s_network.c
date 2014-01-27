@@ -34,6 +34,7 @@
 #include <co_network.h>
 #include <server.h>
 #include <storage.h>
+#include <tzplatform_config.h>
 
 #include "s_common.h"
 #include "s_network.h"
@@ -135,12 +136,15 @@ static void _insert_mcc_mnc_oper_list(TcorePlugin *plugin, CoreObject *o)
 	gpointer key, value;
 	GHashTable *result = NULL, *row = NULL;
 	struct tcore_network_operator_info *noi = NULL;
+	const char *path = NULL;
 	int count = 0;
 
 	s = tcore_plugin_ref_server(plugin);
 	strg = tcore_server_find_storage(s, "database");
 
-	handle = tcore_storage_create_handle(strg, "/opt/dbspace/.mcc_mnc_oper_list.db");
+	path = tzplatform_mkpath(TZ_SYS_DB, ".mcc_mnc_oper_list.db");
+
+	handle = tcore_storage_create_handle(strg, path);
 	if (!handle) {
 		dbg("fail to create database handle");
 		return;
