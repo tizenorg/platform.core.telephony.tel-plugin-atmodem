@@ -23,7 +23,7 @@ Telephony AT Modem library
 cp %{SOURCE1001} .
 
 %build
-cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
+%cmake .
 make %{?jobs:-j%jobs}
 
 %post
