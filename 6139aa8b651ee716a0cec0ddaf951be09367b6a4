@@ -26,6 +26,17 @@ Code-Review+2: JooSeok Park <jooseok.park@samsung.com>
 Code-Review+1: Kévin THIERRY <kevin.thierry@open.eurogiciel.org>
 Verified+1: Kévin THIERRY <kevin.thierry@open.eurogiciel.org>
 Submitted-by: JooSeok Park <jooseok.park@samsung.com>
+Submitted-at: Wed, 12 Feb 2014 17:23:04 -0700
+Reviewed-on: https://review.tizen.org/gerrit/15949
+Project: platform/core/telephony/tel-plugin-atmodem
+Branch: refs/heads/tizen
+
+Code-Review+1: ronan(Eurogiciel) Le Martret <ronan.lemartret@open.eurogiciel.org>
+Verified+1: ronan(Eurogiciel) Le Martret <ronan.lemartret@open.eurogiciel.org>
+Code-Review+2: JooSeok Park <jooseok.park@samsung.com>
+Code-Review+1: Kévin THIERRY <kevin.thierry@open.eurogiciel.org>
+Verified+1: Kévin THIERRY <kevin.thierry@open.eurogiciel.org>
+Submitted-by: JooSeok Park <jooseok.park@samsung.com>
 Submitted-at: Wed, 12 Feb 2014 16:23:04 -0800
 Reviewed-on: https://review.tizen.org/gerrit/15949
 Project: platform/core/telephony/tel-plugin-atmodem
