@@ -8,7 +8,7 @@ SET(INCLUDEDIR "\${prefix}/include")
 
 # Set required packages
 INCLUDE(FindPkgConfig)
-pkg_check_modules(pkgs REQUIRED glib-2.0 tcore dlog libtzplatform-config)
+pkg_check_modules(pkgs REQUIRED glib-2.0 tcore dlog libtzplatform-config vconf)
 
 FOREACH(flag ${pkgs_CFLAGS})
 	SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} ${flag}")
@@ -18,24 +18,22 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include/)
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS} -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wdeclaration-after-statement -Wmissing-declarations -Wredundant-decls -Wcast-align")
 
-ADD_DEFINITIONS("-DFEATURE_DLOG_DEBUG")
-ADD_DEFINITIONS("-DTCORE_LOG_TAG=\"TEL_PLUGIN_ATMODEM\"")
+ADD_DEFINITIONS("-DFEATURE_TLOG_DEBUG")
+ADD_DEFINITIONS("-DTCORE_LOG_TAG=\"ATMODEM\"")
 
 MESSAGE(${CMAKE_C_FLAGS})
 MESSAGE(${CMAKE_EXE_LINKER_FLAGS})
 
 SET(SRCS
-		src/desc_at.c
-		src/s_modem.c
-		src/s_common.c
-		src/s_network.c
-		src/s_sim.c
-		src/s_call.c
-		src/s_ps.c
-		src/s_sms.c
-		src/at_tok.c
-		src/atchannel.c
-		src/s_ss.c
+	src/desc_atmodem.c
+	src/atmodem_modem.c
+	src/atmodem_common.c
+	src/atmodem_network.c
+	src/atmodem_sim.c
+	src/atmodem_call.c
+	src/atmodem_ps.c
+	src/atmodem_sms.c
+	src/atmodem_ss.c
 )
 
 
