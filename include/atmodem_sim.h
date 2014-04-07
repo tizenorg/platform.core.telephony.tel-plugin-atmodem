@@ -1,9 +1,7 @@
 /*
  * tel-plugin-atmodem
  *
- * Copyright (c) 2012 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * Contact: Hayoon Ko <hayoon.ko@samsung.com>
+ * Copyright (c) 2013 Samsung Electronics Co. Ltd. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +16,10 @@
  * limitations under the License.
  */
 
-#ifndef __S_SMS_H__
-#define __S_SMS_H__
+#ifndef __ATMODEM_SIM_H__
+#define __ATMODEM_SIM_H__
 
-gboolean s_sms_init(TcorePlugin *cp, CoreObject *co);
-void s_sms_exit(TcorePlugin *cp, CoreObject *co);
+gboolean atmodem_sim_init(TcorePlugin *p, CoreObject *co);
+void atmodem_sim_exit(TcorePlugin *p, CoreObject *co);
 
-#endif
+#endif	/* __ATMODEM_SIM_H__ */

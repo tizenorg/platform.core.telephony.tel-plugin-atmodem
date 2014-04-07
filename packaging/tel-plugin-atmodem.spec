@@ -1,7 +1,10 @@
-#sbs-git:slp/pkgs/t/tel-plugin-atmodem
-Name: tel-plugin-atmodem
-Summary: Telephony AT Modem library
-Version: 0.1.40
+%define major 3
+%define minor 0
+%define patchlevel 1
+
+Name:		tel-plugin-atmodem
+Summary:	Telephony AT Modem library
+Version:    %{major}.%{minor}.%{patchlevel}
 Release:    1
 Group:      System/Libraries
 License:    Apache-2.0
@@ -14,6 +17,7 @@ BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(tcore)
 BuildRequires:  pkgconfig(libtzplatform-config)
+BuildRequires:  pkgconfig(vconf)
 
 %description
 Telephony AT Modem library
