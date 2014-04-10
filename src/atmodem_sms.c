@@ -459,15 +459,27 @@ static TelReturn atmodem_sms_send_sms(CoreObject *co,
 	TcoreObjectResponseCallback cb, void *cb_data)
 {
 	gchar *at_cmd;
-
+	TcorePending *pending;
+	TcoreAtRequest *at_req;
+	TcoreHal *hal;
+	TcoreAT *at;
+	TcoreQueue *queue;
+	TelReturn ret = TEL_RETURN_FAILURE;
 	AtmodemRespCbData *resp_cb_data;
-	TelReturn ret;
 
 	const unsigned char *tpdu_byte_data;
 	gint tpdu_byte_len, pdu_byte_len;
 	char buf[HEX_PDU_LEN_MAX];
 	char pdu[PDU_LEN_MAX];
+
 	dbg("Enter");
+
+	/*get HAL*/
+	hal = tcore_object_get_hal(co);
+	if (hal == NULL) {
+		err("HAL is NULL");
+		return ret;
+	}
 
 	tpdu_byte_data = send_info->send_data.tpdu;
 
@@ -498,7 +510,41 @@ static TelReturn atmodem_sms_send_sms(CoreObject *co,
 		ATMODEM_CHECK_REQUEST_RET(ret, NULL, "More Msgs to Send");
 	}
 	/* AT-Command : Send SMS */
-	at_cmd = g_strdup_printf("AT+CMGS=%d\r%s\x1A", tpdu_byte_len, buf);
+	at_cmd = g_strdup_printf("AT+CMGS=%d\r%s%x", tpdu_byte_len, buf, 0x1A);
+
+	/* Create AT-Command Request */
+	at_req = tcore_at_request_new(at_cmd, "+CMGS:", TCORE_AT_COMMAND_TYPE_SINGLELINE);
+	if (at_req == NULL) {
+		err("Request is NULL");
+		atmodem_destroy_resp_cb_data(resp_cb_data);
+		g_free(at_cmd);
+		return TEL_RETURN_FAILURE;
+	}
+
+	/* Create Pending Request */
+	pending = tcore_pending_new(co, 0);
+	if (pending == NULL) {
+		err("Pending is NULL");
+		atmodem_destroy_resp_cb_data(resp_cb_data);
+		g_free(at_cmd);
+		return TEL_RETURN_FAILURE;
+	}
+
+	tcore_pending_set_request_data(pending, 0, at_req);
+	tcore_pending_link_request(pending, NULL);
+	tcore_pending_set_priority(pending, TCORE_PENDING_PRIORITY_DEFAULT);
+	tcore_pending_set_response_callback(pending, on_response_atmodem_sms_send_sms, resp_cb_data);
+	tcore_pending_set_send_callback(pending, on_send_atmodem_request, NULL);
+	tcore_pending_set_timeout_callback(pending, NULL, NULL);
+
+	at = tcore_hal_get_at(hal);
+	tcore_at_set_request(at, at_req);
+
+	queue = tcore_hal_ref_queue(hal);
+	tcore_queue_push(queue, pending);
+
+	ret = tcore_hal_send_data(hal, strlen(at_cmd), at_cmd);
+	dbg("ret: [0x%x]", ret);
 
 	/* Send Request to modem */
 	ret = tcore_at_prepare_and_send_request(co,
