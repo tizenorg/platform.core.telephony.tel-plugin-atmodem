@@ -709,7 +709,7 @@ static void __atmodem_sim_next_from_get_file_data(CoreObject *co_sim,
 	case TEL_SIM_EF_IMSI:
 		if (resp_cb_data->cb) {
 			resp_cb_data->cb(co_sim, (gint)sim_result,
-				&file_meta->files.data, resp_cb_data->cb_data);
+				&file_meta->imsi, resp_cb_data->cb_data);
 		} else {
 			/* Update Status */
 			__atmodem_sim_update_sim_status(co_sim, TEL_SIM_STATUS_SIM_INIT_COMPLETED);
@@ -1025,7 +1025,7 @@ static void __on_response_atmodem_sim_get_file_data(TcorePending *p,
 		if (resp->lines) {
 			line = (const char *)resp->lines->data;
 			tokens = tcore_at_tok_new(line);
-			if (g_slist_length(tokens) != 2) {
+			if (g_slist_length(tokens) < 2) {
 				msg("Invalid message");
 				tcore_at_tok_free(tokens);
 				return;
@@ -1048,16 +1048,13 @@ static void __on_response_atmodem_sim_get_file_data(TcorePending *p,
 			switch (file_meta->file_id) {
 			case TEL_SIM_EF_IMSI: {
 				dbg("Data: [%s]", res);
-#if 0
-				dr = tcore_sim_decode_imsi((unsigned char *)res, res_len,
-					&file_meta->files.data.imsi);
+				dr = tcore_sim_decode_imsi((unsigned char *)res, res_len, &file_meta->imsi);
 				if (dr == FALSE) {
 					err("IMSI decoding failed");
 				} else {
-					/* TBD */
-					tcore_sim_set_imsi(co_sim, &file_meta->files.data.imsi);
+					/* Update IMSI */
+					tcore_sim_set_imsi(co_sim, &file_meta->imsi);
 				}
-#endif
 			}
 			break;
 
@@ -1861,8 +1858,12 @@ static void __atmodem_sim_get_file_data(CoreObject *co_sim,
 	p2 = (unsigned char) offset & 0x00FF;			/* offset low */
 	p3 = (unsigned char) file_meta->data_size;
 
-	at_cmd = g_strdup_printf("AT+CRSM=%d, %d, %d, %d, %d",
-				ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id, p1, p2, p3);
+	if (file_meta->file_id == TEL_SIM_EF_IMSI)
+		at_cmd = g_strdup_printf("AT+CRSM=%d, %d ",
+					ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id);
+	else
+		at_cmd = g_strdup_printf("AT+CRSM=%d, %d, %d, %d, %d",
+					ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id, p1, p2, p3);
 
 	ret = tcore_at_prepare_and_send_request(co_sim,
 				at_cmd, "+CRSM:",
