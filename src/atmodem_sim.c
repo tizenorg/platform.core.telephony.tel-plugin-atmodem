@@ -553,11 +553,9 @@ static void __atmodem_sim_get_sim_type(CoreObject *co_sim,
 	ret = tcore_at_prepare_and_send_request(co_sim,
 		"AT\%SCCT?", "\%SCCT:",
 		TCORE_AT_COMMAND_TYPE_SINGLELINE,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		__on_response_atmodem_sim_get_sim_type, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get SIM Type");
 
 	dbg("ret: [%d]",  ret);
@@ -1815,13 +1813,11 @@ static void __atmodem_sim_get_file_record(CoreObject *co_sim, AtmodemRespCbData 
 				ATMODEM_SIM_ACCESS_READ_RECORD, file_meta->file_id, p1, p2, p3);
 
 	ret = tcore_at_prepare_and_send_request(co_sim,
-				at_cmd, "+CRSM:",
-				TCORE_AT_COMMAND_TYPE_SINGLELINE,
-				TCORE_PENDING_PRIORITY_DEFAULT,
-				NULL,
-				__on_response_atmodem_sim_get_file_data, resp_cb_data,
-				on_send_atmodem_request, NULL,
-				0, NULL, NULL);
+		at_cmd, "+CRSM:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_get_file_data, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get File Record");
 
 	dbg("ret:[%d]", ret);
@@ -1866,13 +1862,11 @@ static void __atmodem_sim_get_file_data(CoreObject *co_sim,
 					ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id, p1, p2, p3);
 
 	ret = tcore_at_prepare_and_send_request(co_sim,
-				at_cmd, "+CRSM:",
-				TCORE_AT_COMMAND_TYPE_SINGLELINE,
-				TCORE_PENDING_PRIORITY_DEFAULT,
-				NULL,
-				__on_response_atmodem_sim_get_file_data, resp_cb_data,
-				on_send_atmodem_request, NULL,
-				0, NULL, NULL);
+		at_cmd, "+CRSM:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_get_file_data, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get File Data");
 
 	dbg("ret:[%d]", ret);
@@ -1895,12 +1889,11 @@ static TelReturn __atmodem_sim_get_file_info(CoreObject *co_sim,
 		ATMODEM_SIM_ACCESS_GET_RESPONSE, file_meta->file_id);
 
 	ret = tcore_at_prepare_and_send_request(co_sim,
-				at_cmd, "+CRSM:",
-				TCORE_AT_COMMAND_TYPE_SINGLELINE,
-				TCORE_PENDING_PRIORITY_DEFAULT, NULL,
-				__on_response_atmodem_sim_get_file_info, resp_cb_data,
-				on_send_atmodem_request, NULL,
-				0, NULL, NULL);
+		at_cmd, "+CRSM:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_get_file_info, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get File Info");
 
 	g_free(at_cmd);
@@ -3237,13 +3230,11 @@ static TelReturn __atmodem_sim_update_file(CoreObject *co,
 		cmd, ef, p1, p2, p3, encoded_data);
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, "+CRSM:",
-			TCORE_AT_COMMAND_TYPE_SINGLELINE,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			__on_response_atmodem_sim_update_file, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, "+CRSM:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_update_file, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Update SIM File");
 
 	tcore_free(encoded_data);
@@ -3268,13 +3259,12 @@ static void __atmodem_sim_read_record(CoreObject *co,
 
 	/* According to TS 102 221, values of p1, p2, p3 can be as below:
 	 * 11.1.5 READ RECORD
-	 * P1: Record number
-	 * P2: Mode, see table 11.11
-	 * Lc: Not present
-	 * Data: Not present
-	 * Le: Number of bytes to be read (P3)
+	 *	P1: Record number
+	 *	P2: Mode, see table 11.11
+	 *	Lc: Not present
+	 *	Data: Not present
+	 *	Le: Number of bytes to be read (P3)
 	 */
-
 	p1 = (unsigned char) file_meta->current_index;
 	p2 = (unsigned char) 0x04;			/* 0x4 for absolute mode */
 	p3 = (unsigned char) file_meta->rec_length;
@@ -3282,12 +3272,12 @@ static void __atmodem_sim_read_record(CoreObject *co,
 	at_cmd = g_strdup_printf("AT+CRSM=%d, %d, %d, %d, %d",
 				ATMODEM_SIM_ACCESS_READ_RECORD, file_meta->file_id, p1, p2, p3);
 
-	ret = tcore_at_prepare_and_send_request(co, at_cmd, "+CRSM:",
-						TCORE_AT_COMMAND_TYPE_SINGLELINE,
-						TCORE_PENDING_PRIORITY_DEFAULT, NULL,
-						__on_response_atmodem_sim_read_data, resp_cb_data,
-						on_send_atmodem_request, NULL, 0, NULL, NULL);
-
+	ret = tcore_at_prepare_and_send_request(co,
+		at_cmd, "+CRSM:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_read_data, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get File Record");
 
 	dbg("ret:[%d]", ret);
@@ -3308,15 +3298,15 @@ static void __atmodem_sim_read_binary(CoreObject *co, AtmodemRespCbData *resp_cb
 
 	dbg("Entry File-id:[0x%02x]", file_meta->file_id);
 
-	/* According to TS 102 221, values of P1, P2, P3 can be as below:
+	/*
+	 * According to TS 102 221, values of P1, P2, P3 can be as below:
 	 * 11.1.3 READ BINARY
-	 * P1: See table 11.10
-	 * P2: Offset low
-	 * Lc: Not present
-	 * Data: Not present
-	 * Le: Number of bytes to be read (P3)
+	 *	P1: See table 11.10
+	 *	P2: Offset low
+	 *	Lc: Not present
+	 *	Data: Not present
+	 *	Le: Number of bytes to be read (P3)
 	 */
-
 	p1 = (unsigned char) (offset & 0xFF00) >> 8;
 	p2 = (unsigned char) offset & 0x00FF;			/* offset low */
 	p3 = (unsigned char) file_meta->data_size;
@@ -3325,11 +3315,10 @@ static void __atmodem_sim_read_binary(CoreObject *co, AtmodemRespCbData *resp_cb
 				ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id, p1, p2, p3);
 
 	ret = tcore_at_prepare_and_send_request(co, at_cmd, "+CRSM:",
-						TCORE_AT_COMMAND_TYPE_SINGLELINE,
-						TCORE_PENDING_PRIORITY_DEFAULT, NULL,
-						__on_response_atmodem_sim_read_data, resp_cb_data,
-						on_send_atmodem_request, NULL, 0, NULL, NULL);
-
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_read_data, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get File Data");
 
 	dbg("ret:[%d]", ret);
@@ -3351,12 +3340,11 @@ static TelReturn __atmodem_sim_get_response(CoreObject *co, AtmodemRespCbData *r
 		ATMODEM_SIM_ACCESS_GET_RESPONSE, file_meta->file_id);
 
 	ret = tcore_at_prepare_and_send_request(co,
-				at_cmd, "+CRSM:",
-				TCORE_AT_COMMAND_TYPE_SINGLELINE,
-				TCORE_PENDING_PRIORITY_DEFAULT, NULL,
-				__on_response_atmodem_sim_get_response, resp_cb_data,
-				on_send_atmodem_request, NULL,
-				0, NULL, NULL);
+		at_cmd, "+CRSM:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		__on_response_atmodem_sim_get_response, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get File Info");
 
 	g_free(at_cmd);
@@ -3920,13 +3908,11 @@ static TelReturn atmodem_sim_verify_pins(CoreObject *co,
 			&sec_op, sizeof(sec_op));
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, NULL,
-			TCORE_AT_COMMAND_TYPE_NO_RESULT,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sim_verify_pins, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, NULL,
+		TCORE_AT_COMMAND_TYPE_NO_RESULT,
+		NULL,
+		on_response_atmodem_sim_verify_pins, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "SIM Verify PIN");
 
 	g_free(cmd_str);
@@ -3960,13 +3946,11 @@ static TelReturn atmodem_sim_verify_puks(CoreObject *co,
 			&sec_op, sizeof(sec_op));
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, NULL,
-			TCORE_AT_COMMAND_TYPE_NO_RESULT,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sim_verify_puks, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, NULL,
+		TCORE_AT_COMMAND_TYPE_NO_RESULT,
+		NULL,
+		on_response_atmodem_sim_verify_puks, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "SIM Verify PUK");
 
 	g_free(cmd_str);
@@ -3999,13 +3983,11 @@ static TelReturn atmodem_sim_change_pins(CoreObject *co,
 			&sec_op, sizeof(sec_op));
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, NULL,
-			TCORE_AT_COMMAND_TYPE_NO_RESULT,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sim_change_pins, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, NULL,
+		TCORE_AT_COMMAND_TYPE_NO_RESULT,
+		NULL,
+		on_response_atmodem_sim_change_pins, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "SIM Change PIN");
 
 	g_free(cmd_str);
@@ -4065,13 +4047,11 @@ static TelReturn atmodem_sim_disable_facility(CoreObject *co,
 			&sec_op, sizeof(sec_op));
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, "+CLCK:",
-			TCORE_AT_COMMAND_TYPE_SINGLELINE,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sim_disable_facility, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, "+CLCK:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		on_response_atmodem_sim_disable_facility, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "SIM Disable Facility");
 
 	g_free(cmd_str);
@@ -4103,13 +4083,11 @@ static TelReturn atmodem_sim_enable_facility(CoreObject *co,
 			&sec_op, sizeof(sec_op));
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, "+CLCK:",
-			TCORE_AT_COMMAND_TYPE_SINGLELINE,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sim_enable_facility, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, "+CLCK:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		on_response_atmodem_sim_enable_facility, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "SIM Disable Facility");
 
 	g_free(cmd_str);
@@ -4140,13 +4118,11 @@ static TelReturn atmodem_sim_get_facility(CoreObject *co,
 				&sec_op, sizeof(sec_op));
 
 	ret = tcore_at_prepare_and_send_request(co,
-			cmd_str, "+CLCK:",
-			TCORE_AT_COMMAND_TYPE_SINGLELINE,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sim_get_facility, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		cmd_str, "+CLCK:",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		on_response_atmodem_sim_get_facility, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "SIM Get Facility");
 
 	g_free(cmd_str);

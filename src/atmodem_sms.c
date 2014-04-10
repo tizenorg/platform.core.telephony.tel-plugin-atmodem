@@ -492,11 +492,9 @@ static TelReturn atmodem_sms_send_sms(CoreObject *co,
 		ret = tcore_at_prepare_and_send_request(co,
 			"AT+CMMS=1", "+CMMS:",
 			TCORE_AT_COMMAND_TYPE_SINGLELINE,
-			TCORE_PENDING_PRIORITY_DEFAULT,
 			NULL,
 			on_response_atmodem_sms_send_more_msg, NULL,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+			on_send_atmodem_request, NULL);
 		ATMODEM_CHECK_REQUEST_RET(ret, NULL, "More Msgs to Send");
 	}
 	/* AT-Command : Send SMS */
@@ -506,11 +504,9 @@ static TelReturn atmodem_sms_send_sms(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		at_cmd, "+CMGS:",
 		TCORE_AT_COMMAND_TYPE_SINGLELINE,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_sms_send_sms, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Send SMS");
 
 	/* Free resources */
@@ -556,11 +552,9 @@ static TelReturn atmodem_sms_get_count(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		at_cmd, "+CPMS",
 		TCORE_AT_COMMAND_TYPE_SINGLELINE,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_sms_get_count, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get SMS Count");
 
 	/* Free resources */
@@ -602,11 +596,9 @@ static TelReturn atmodem_sms_send_deliver_report(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_sms_send_deliver_report, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Send deliver Report");
 
 	/* Free resources */
@@ -653,11 +645,9 @@ static TelReturn atmodem_sms_send_deliver_report(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_sms_set_sca, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Set SCA");
 
 	/* Free resources */
@@ -698,13 +688,11 @@ static TelReturn atmodem_sms_send_deliver_report(CoreObject *co,
 
 	/* Send Request to modem */
 	ret = tcore_at_prepare_and_send_request(co,
-			at_cmd, "+CSCA",
-			TCORE_AT_COMMAND_TYPE_SINGLELINE,
-			TCORE_PENDING_PRIORITY_DEFAULT,
-			NULL,
-			on_response_atmodem_sms_get_sca, resp_cb_data,
-			on_send_atmodem_request, NULL,
-			0, NULL, NULL);
+		at_cmd, "+CSCA",
+		TCORE_AT_COMMAND_TYPE_SINGLELINE,
+		NULL,
+		on_response_atmodem_sms_get_sca, resp_cb_data,
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get SCA");
 
 	/* Free resources */

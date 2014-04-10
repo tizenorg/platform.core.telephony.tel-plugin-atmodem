@@ -518,11 +518,9 @@ static TelReturn __atmodem_send_call_request(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_call_default, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, func_name);
 
 	/* Free resources */
@@ -561,11 +559,9 @@ static TelReturn __atmodem_call_get_call_list(CoreObject *co, gboolean flag)
 	ret = tcore_at_prepare_and_send_request(co,
 		"AT+CLCC","+CLCC",
 		TCORE_AT_COMMAND_TYPE_MULTILINE,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		__on_response_atmodem_call_get_call_list, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get current call list");
 
 	return ret;

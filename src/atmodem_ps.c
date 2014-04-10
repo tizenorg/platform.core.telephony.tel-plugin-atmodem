@@ -179,13 +179,10 @@ static void __atmodem_get_ipconfiguration(CoreObject *co_ps, CoreObject *ps_cont
 	ret = tcore_at_prepare_and_send_request(co_ps,
 		"AT+CGDCONT?", NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		__on_response_atmodem_get_ipconfiguration,
 		ps_context,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
-
+		on_send_atmodem_request, NULL);
 	if (ret != TEL_RETURN_SUCCESS){
 		err("Failed to prepare and send AT request");
 		/* Deactivate PDP context */
@@ -237,13 +234,10 @@ static void __atmodem_attach_ps(CoreObject *co_ps, CoreObject *ps_context)
 	ret = tcore_at_prepare_and_send_request(co_ps,
 		"ATD*99***1#", NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		__on_response_atmodem_attach_ps,
 		ps_context,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
-
+		on_send_atmodem_request, NULL);
 	if (ret != TEL_RETURN_SUCCESS){
 		err("Failed to prepare and send AT request");
 		/* Deactivate PDP context */
@@ -402,13 +396,10 @@ static TelReturn atmodem_ps_activate_context(CoreObject *co_ps, CoreObject *ps_c
 	ret = tcore_at_prepare_and_send_request(co_ps,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_ps_activate_context,
 		ps_context,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
-
+		on_send_atmodem_request, NULL);
 	if (ret != TEL_RETURN_SUCCESS){
 		TcorePsCallState curr_call_status;
 
@@ -464,13 +455,10 @@ static TelReturn atmodem_ps_deactivate_context(CoreObject *co_ps, CoreObject *ps
 	ret = tcore_at_prepare_and_send_request(co_ps,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_ps_deactivate_context,
 		ps_context,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
-
+		on_send_atmodem_request, NULL);
 	if (ret != TEL_RETURN_SUCCESS){
 		TcorePsCallState curr_call_status;
 
@@ -590,12 +578,10 @@ static TelReturn atmodem_ps_define_context(CoreObject *co_ps, CoreObject *ps_con
 	ret = tcore_at_prepare_and_send_request(co_ps,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_ps_define_context,
 		ps_context,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 
 	tcore_free(pdp_type_str);
 	tcore_free(at_cmd);

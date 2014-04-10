@@ -427,11 +427,9 @@ static TelReturn atmodem_modem_set_flight_mode(CoreObject *co, gboolean enable,
 	ret = tcore_at_prepare_and_send_request(co,
 		at_cmd, NULL,
 		TCORE_AT_COMMAND_TYPE_NO_RESULT,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_modem_set_flight_mode, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Set Flight mode");
 
 	/* Free resources */
@@ -494,11 +492,9 @@ static TelReturn atmodem_modem_get_version(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		"AT+CGMR", NULL,
 		TCORE_AT_COMMAND_TYPE_SINGLELINE,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_modem_get_version, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get Version");
 
 	return ret;
@@ -531,11 +527,9 @@ static TelReturn atmodem_modem_get_imei(CoreObject *co,
 	ret = tcore_at_prepare_and_send_request(co,
 		"AT+CGSN", NULL,
 		TCORE_AT_COMMAND_TYPE_NUMERIC,
-		TCORE_PENDING_PRIORITY_DEFAULT,
 		NULL,
 		on_response_atmodem_modem_get_imei, resp_cb_data,
-		on_send_atmodem_request, NULL,
-		0, NULL, NULL);
+		on_send_atmodem_request, NULL);
 	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Get IMEI");
 
 	return ret;
