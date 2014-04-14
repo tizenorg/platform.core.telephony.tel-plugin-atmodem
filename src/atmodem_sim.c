@@ -153,6 +153,7 @@ typedef struct {
 
 /* Request Function Declaration */
 static TelReturn atmodem_sim_get_imsi (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
+static TelReturn atmodem_sim_get_ecc (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_pins(CoreObject *co, const TelSimSecPinPw *request,
 		TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_puks(CoreObject *co, const TelSimSecPukPw *request,
@@ -1809,8 +1810,8 @@ static void __atmodem_sim_get_file_record(CoreObject *co_sim, AtmodemRespCbData 
 	p2 = (unsigned char) 0x04;			/* 0x4 for absolute mode */
 	p3 = (unsigned char) file_meta->rec_length;
 
-	at_cmd = g_strdup_printf("AT+CRSM=%d, %d, %d, %d, %d",
-				ATMODEM_SIM_ACCESS_READ_RECORD, file_meta->file_id, p1, p2, p3);
+	at_cmd = g_strdup_printf("AT+CRSM=%d, %d",
+				ATMODEM_SIM_ACCESS_READ_RECORD, file_meta->file_id);
 
 	ret = tcore_at_prepare_and_send_request(co_sim,
 		at_cmd, "+CRSM:",
@@ -3860,6 +3861,24 @@ static TelReturn atmodem_sim_get_imsi (CoreObject *co,
 	return __atmodem_sim_get_file_info(co, resp_cb_data);
 }
 
+static TelReturn atmodem_sim_get_ecc (CoreObject *co,
+	TcoreObjectResponseCallback cb, void *cb_data)
+{
+	AtmodemSimMetaInfo file_meta = {0, };
+	AtmodemRespCbData *resp_cb_data = NULL;
+
+	dbg("Entry");
+
+	file_meta.file_id = TEL_SIM_EF_ECC;
+	file_meta.file_result = TEL_SIM_RESULT_FAILURE;
+	file_meta.req_command = TCORE_COMMAND_SIM_GET_ECC;
+
+	resp_cb_data = atmodem_create_resp_cb_data(cb, cb_data,
+		&file_meta, sizeof(AtmodemSimMetaInfo));
+
+	return __atmodem_sim_get_file_info(co, resp_cb_data);
+}
+
 /*
  * Operation - verify_pins/verify_puks/change_pins
  *
@@ -4132,7 +4151,7 @@ static TelReturn atmodem_sim_get_facility(CoreObject *co,
 /* SIM Operations */
 static TcoreSimOps atmodem_sim_ops = {
 	.get_imsi = atmodem_sim_get_imsi,
-	.get_ecc = NULL,
+	.get_ecc = atmodem_sim_get_ecc,
 	.get_iccid = NULL,
 	.get_language = NULL,
 	.set_language = NULL,
