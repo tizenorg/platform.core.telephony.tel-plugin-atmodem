@@ -155,6 +155,7 @@ typedef struct {
 static TelReturn atmodem_sim_get_imsi (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_get_ecc (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_get_spdi (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
+static TelReturn atmodem_sim_get_spn (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_pins(CoreObject *co, const TelSimSecPinPw *request,
 		TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_puks(CoreObject *co, const TelSimSecPukPw *request,
@@ -1857,7 +1858,8 @@ static void __atmodem_sim_get_file_data(CoreObject *co_sim,
 	p2 = (unsigned char) offset & 0x00FF;			/* offset low */
 	p3 = (unsigned char) file_meta->data_size;
 
-	if (file_meta->file_id == TEL_SIM_EF_IMSI)
+	if (file_meta->file_id == TEL_SIM_EF_IMSI
+		|| file_meta->file_id == TEL_SIM_EF_SPN)
 		at_cmd = g_strdup_printf("AT+CRSM=%d, %d ",
 					ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id);
 	else
@@ -3903,6 +3905,24 @@ static TelReturn atmodem_sim_get_spdi (CoreObject *co,
 	return __atmodem_sim_get_file_info(co, resp_cb_data);
 }
 
+static TelReturn atmodem_sim_get_spn (CoreObject *co,
+	TcoreObjectResponseCallback cb, void *cb_data)
+{
+	AtmodemSimMetaInfo file_meta = {0, };
+	AtmodemRespCbData *resp_cb_data = NULL;
+
+	dbg("Entry");
+
+	file_meta.file_id = TEL_SIM_EF_SPN;
+	file_meta.file_result = TEL_SIM_RESULT_FAILURE;
+	file_meta.req_command = TCORE_COMMAND_SIM_GET_SPN;
+
+	resp_cb_data = atmodem_create_resp_cb_data(cb, cb_data,
+		&file_meta, sizeof(AtmodemSimMetaInfo));
+
+	return __atmodem_sim_get_file_info(co, resp_cb_data);
+}
+
 /*
  * Operation - verify_pins/verify_puks/change_pins
  *
@@ -4185,7 +4205,7 @@ static TcoreSimOps atmodem_sim_ops = {
 	.get_mailbox_info = NULL,
 	.set_mailbox_info = NULL,
 	.get_msisdn = NULL,
-	.get_spn = NULL,
+	.get_spn = atmodem_sim_get_spn,
 	.get_cphs_netname = NULL,
 	.get_sp_display_info = atmodem_sim_get_spdi,
 	.req_authentication = NULL,
