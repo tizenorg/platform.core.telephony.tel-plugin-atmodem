@@ -157,6 +157,7 @@ static TelReturn atmodem_sim_get_ecc (CoreObject *co_sim, TcoreObjectResponseCal
 static TelReturn atmodem_sim_get_spdi (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_get_spn (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_get_language (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
+static TelReturn atmodem_sim_get_cfis (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_pins(CoreObject *co, const TelSimSecPinPw *request,
 		TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_puks(CoreObject *co, const TelSimSecPukPw *request,
@@ -3907,6 +3908,24 @@ static TelReturn atmodem_sim_get_spdi (CoreObject *co,
 	return __atmodem_sim_get_file_info(co, resp_cb_data);
 }
 
+static TelReturn atmodem_sim_get_cfis (CoreObject *co,
+	TcoreObjectResponseCallback cb, void *cb_data)
+{
+	AtmodemSimMetaInfo file_meta = {0, };
+	AtmodemRespCbData *resp_cb_data = NULL;
+
+	dbg("Entry");
+
+	file_meta.file_id = TEL_SIM_EF_USIM_CFIS;
+	file_meta.file_result = TEL_SIM_RESULT_FAILURE;
+	file_meta.req_command = TCORE_COMMAND_SIM_GET_CALL_FORWARDING_INFO;
+
+	resp_cb_data = atmodem_create_resp_cb_data(cb, cb_data,
+		&file_meta, sizeof(AtmodemSimMetaInfo));
+
+	return __atmodem_sim_get_file_info(co, resp_cb_data);
+}
+
 static TelReturn atmodem_sim_get_spn (CoreObject *co,
 	TcoreObjectResponseCallback cb, void *cb_data)
 {
@@ -4219,7 +4238,7 @@ static TcoreSimOps atmodem_sim_ops = {
 	.get_iccid = NULL,
 	.get_language = atmodem_sim_get_language,
 	.set_language = NULL,
-	.get_callforwarding_info = NULL,
+	.get_callforwarding_info = atmodem_sim_get_cfis,
 	.get_messagewaiting_info = NULL,
 	.set_messagewaiting_info = NULL,
 	.get_mailbox_info = NULL,
