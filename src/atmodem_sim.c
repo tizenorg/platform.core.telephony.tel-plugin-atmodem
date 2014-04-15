@@ -154,6 +154,7 @@ typedef struct {
 /* Request Function Declaration */
 static TelReturn atmodem_sim_get_imsi (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_get_ecc (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
+static TelReturn atmodem_sim_get_spdi (CoreObject *co_sim, TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_pins(CoreObject *co, const TelSimSecPinPw *request,
 		TcoreObjectResponseCallback cb, void *cb_data);
 static TelReturn atmodem_sim_verify_puks(CoreObject *co, const TelSimSecPukPw *request,
@@ -572,6 +573,7 @@ static void __atmodem_sim_process_sim_status(CoreObject *co,
 		dbg("SIM INIT COMPLETED");
 
 		ATMODEM_SIM_READ_FILE(co, NULL, NULL, TEL_SIM_EF_IMSI, ret);
+		ATMODEM_SIM_READ_FILE(co, NULL, NULL, TEL_SIM_EF_SPDI, ret);
 		dbg("ret: [%d]", ret);
 
 		return;
@@ -2455,7 +2457,7 @@ static void __on_response_atmodem_sim_read_data(TcorePending *p,
 		if (resp->lines) {
 			line = (const char *)resp->lines->data;
 			tokens = tcore_at_tok_new(line);
-			if (g_slist_length(tokens) != 2) {
+			if (g_slist_length(tokens) < 2) {
 				err("Invalid message");
 				tcore_at_tok_free(tokens);
 				return;
@@ -3312,7 +3314,11 @@ static void __atmodem_sim_read_binary(CoreObject *co, AtmodemRespCbData *resp_cb
 	p2 = (unsigned char) offset & 0x00FF;			/* offset low */
 	p3 = (unsigned char) file_meta->data_size;
 
-	at_cmd = g_strdup_printf("AT+CRSM=%d, %d, %d, %d, %d",
+	if (file_meta->file_id == TEL_SIM_EF_SPDI)
+		at_cmd = g_strdup_printf("AT+CRSM=%d, %d",
+				ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id);
+	else
+		at_cmd = g_strdup_printf("AT+CRSM=%d, %d, %d, %d, %d",
 				ATMODEM_SIM_ACCESS_READ_BINARY, file_meta->file_id, p1, p2, p3);
 
 	ret = tcore_at_prepare_and_send_request(co, at_cmd, "+CRSM:",
@@ -3879,6 +3885,24 @@ static TelReturn atmodem_sim_get_ecc (CoreObject *co,
 	return __atmodem_sim_get_file_info(co, resp_cb_data);
 }
 
+static TelReturn atmodem_sim_get_spdi (CoreObject *co,
+	TcoreObjectResponseCallback cb, void *cb_data)
+{
+	AtmodemSimMetaInfo file_meta = {0, };
+	AtmodemRespCbData *resp_cb_data = NULL;
+
+	dbg("Entry");
+
+	file_meta.file_id = TEL_SIM_EF_SPDI;
+	file_meta.file_result = TEL_SIM_RESULT_FAILURE;
+	file_meta.req_command = TCORE_COMMAND_SIM_GET_SP_DISPLAY_INFO;
+
+	resp_cb_data = atmodem_create_resp_cb_data(cb, cb_data,
+		&file_meta, sizeof(AtmodemSimMetaInfo));
+
+	return __atmodem_sim_get_file_info(co, resp_cb_data);
+}
+
 /*
  * Operation - verify_pins/verify_puks/change_pins
  *
@@ -4163,7 +4187,7 @@ static TcoreSimOps atmodem_sim_ops = {
 	.get_msisdn = NULL,
 	.get_spn = NULL,
 	.get_cphs_netname = NULL,
-	.get_sp_display_info = NULL,
+	.get_sp_display_info = atmodem_sim_get_spdi,
 	.req_authentication = NULL,
 	.verify_pins = atmodem_sim_verify_pins,
 	.verify_puks = atmodem_sim_verify_puks,
