@@ -546,15 +546,6 @@ static TelReturn atmodem_sms_send_sms(CoreObject *co,
 	ret = tcore_hal_send_data(hal, strlen(at_cmd), at_cmd);
 	dbg("ret: [0x%x]", ret);
 
-	/* Send Request to modem */
-	ret = tcore_at_prepare_and_send_request(co,
-		at_cmd, "+CMGS:",
-		TCORE_AT_COMMAND_TYPE_SINGLELINE,
-		NULL,
-		on_response_atmodem_sms_send_sms, resp_cb_data,
-		on_send_atmodem_request, NULL);
-	ATMODEM_CHECK_REQUEST_RET(ret, resp_cb_data, "Send SMS");
-
 	/* Free resources */
 	g_free(at_cmd);
 
