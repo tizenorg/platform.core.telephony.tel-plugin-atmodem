@@ -14,7 +14,6 @@ Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(glib-2.0)
-BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(tcore)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  pkgconfig(vconf)
