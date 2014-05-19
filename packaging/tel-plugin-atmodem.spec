@@ -16,6 +16,7 @@ BuildRequires:  cmake
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(tcore)
 BuildRequires:  pkgconfig(libtzplatform-config)
+BuildRequires:  pkgconfig(tel-headers)
 BuildRequires:  pkgconfig(vconf)
 
 %description

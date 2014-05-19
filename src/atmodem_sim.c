@@ -1240,7 +1240,7 @@ static void __on_response_atmodem_sim_get_file_data(TcorePending *p,
 
 			case TEL_SIM_EF_CPHS_MAILBOX_NUMBERS:	/* linear type */
 			case TEL_SIM_EF_MBDN:			/* linear type */
-#if 0 //TODO tcore_sim_decode_xdn was changed from libtcore. It should be changed according to libtcore
+#if 0	/* Temporarily blocked, MBDN is NOT suported in Emulator */
 				dr = tcore_sim_decode_xdn((unsigned char *)res, res_len,
 					file_meta->mb_list[file_meta->current_index-1].alpha_id,
 					file_meta->mb_list[file_meta->current_index-1].number);
@@ -1250,7 +1250,7 @@ static void __on_response_atmodem_sim_get_file_data(TcorePending *p,
 
 				file_meta->mb_list[file_meta->current_index-1].profile_id =
 					file_meta->current_index;
-#endif
+#endif	/* Temporarily blocked, MBDN is NOT suported in Emulator */
 			break;
 
 			case TEL_SIM_EF_CPHS_VOICE_MSG_WAITING:	/* transparent type */
@@ -2678,7 +2678,7 @@ static void __on_response_atmodem_sim_read_data(TcorePending *p,
 
 			case TEL_SIM_EF_CPHS_MAILBOX_NUMBERS:	/* linear type */
 			case TEL_SIM_EF_MBDN:			/* linear type */
-#if 0 //TODO tcore_sim_decode_xdn was changed from libtcore. It should be changed according to libtcore
+#if 0	/* Temporarily blocked, MBDN is NOT suported in Emulator */
 				dr = tcore_sim_decode_xdn((unsigned char *)res, res_len,
 					file_meta->mb_list[file_meta->current_index-1].alpha_id,
 					file_meta->mb_list[file_meta->current_index-1].number);
@@ -2686,7 +2686,7 @@ static void __on_response_atmodem_sim_read_data(TcorePending *p,
 					strlen(file_meta->mb_list[file_meta->current_index-1].alpha_id);
 				file_meta->mb_list[file_meta->current_index-1].profile_id =
 					file_meta->current_index;
-#endif
+#endif	/* Temporarily blocked, MBDN is NOT suported in Emulator */
 			break;
 
 			case TEL_SIM_EF_CPHS_VOICE_MSG_WAITING:	/* transparent type */
