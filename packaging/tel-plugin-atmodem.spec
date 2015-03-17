@@ -1,67 +1,62 @@
-%define major 3
-%define minor 0
-%define patchlevel 1
+%define major 0
+%define minor 1
+%define patchlevel 57
 
-Name:		tel-plugin-atmodem
-Summary:	Telephony AT Modem library
-Version:    %{major}.%{minor}.%{patchlevel}
-Release:    1
-Group:      System/Libraries
-License:    Apache-2.0
-Source0:    tel-plugin-atmodem-%{version}.tar.gz
-Source1001: 	tel-plugin-atmodem.manifest
-Requires(post): /sbin/ldconfig
-Requires(postun): /sbin/ldconfig
-BuildRequires:  cmake
-BuildRequires:  pkgconfig(glib-2.0)
-BuildRequires:  pkgconfig(tcore)
-BuildRequires:  pkgconfig(libtzplatform-config)
-BuildRequires:  pkgconfig(tel-headers)
-BuildRequires:  pkgconfig(vconf)
+Name:              tel-plugin-atmodem
+Version:           %{major}.%{minor}.%{patchlevel}
+Release:           1
+License:           Apache-2.0
+Summary:           Telephony AT Modem library
+Group:             System/Libraries
+Source0:           tel-plugin-atmodem-%{version}.tar.gz
+BuildRequires:     cmake
+BuildRequires:     pkgconfig(glib-2.0)
+BuildRequires:     pkgconfig(dlog)
+BuildRequires:     pkgconfig(tcore)
+Requires(post):    /sbin/ldconfig
+Requires(postun):  /sbin/ldconfig
 
 %description
 Telephony AT Modem library
 
 %prep
 %setup -q
-cp %{SOURCE1001} .
 
 %build
-%cmake .
-make %{?jobs:-j%jobs}
+cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
+make %{?_smp_mflags}
 
 %post
 /sbin/ldconfig
 
-mkdir -p %{TZ_SYS_DB}
+mkdir -p /opt/dbspace
 
-if [ ! -f %{TZ_SYS_DB}/.mcc_mnc_oper_list.db ]
+if [ ! -f /opt/dbspace/.mcc_mnc_oper_list.db ]
 then
-	sqlite3 %{TZ_SYS_DB}/.mcc_mnc_oper_list.db < /tmp/mcc_mnc_oper_list.sql
+	sqlite3 /opt/dbspace/.mcc_mnc_oper_list.db < /tmp/mcc_mnc_oper_list.sql
 fi
 
 rm -f /tmp/mcc_mnc_oper_list.sql
 
-if [ -f %{TZ_SYS_DB}/.mcc_mnc_oper_list.db ]
+if [ -f /opt/dbspace/.mcc_mnc_oper_list.db ]
 then
-chmod 600 %{TZ_SYS_DB}/.mcc_mnc_oper_list.db
+chmod 600 /opt/dbspace/.mcc_mnc_oper_list.db
 fi
 
-if [ -f %{TZ_SYS_DB}/.mcc_mnc_oper_list.db-journal ]
+if [ -f /opt/dbspace/.mcc_mnc_oper_list.db-journal ]
 then
-chmod 644 %{TZ_SYS_DB}/.mcc_mnc_oper_list.db-journal
+chmod 644 /opt/dbspace/.mcc_mnc_oper_list.db-journal
 fi
 
 %postun -p /sbin/ldconfig
 
 %install
-rm -rf %{buildroot}
 %make_install
 mkdir -p %{buildroot}/usr/share/license
 cp LICENSE %{buildroot}/usr/share/license/%{name}
 
 %files
-%manifest %{name}.manifest
+%manifest tel-plugin-atmodem.manifest
 %defattr(-,root,root,-)
 #%doc COPYING
 %{_libdir}/telephony/plugins/modems/atmodem-plugin*
