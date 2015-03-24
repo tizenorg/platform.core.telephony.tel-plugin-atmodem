@@ -4,7 +4,7 @@ PROJECT(atmodem-plugin C)
 ### Global setting ###
 SET(PREFIX ${CMAKE_INSTALL_PREFIX})
 SET(EXEC_PREFIX "\${prefix}")
-SET(LIBDIR "\${prefix}/lib")
+SET(LIBDIR ${LIB_INSTALL_DIR})
 SET(INCLUDEDIR "\${prefix}/include")
 
 # Set required packages
@@ -47,7 +47,7 @@ SET_TARGET_PROPERTIES(atmodem-plugin PROPERTIES PREFIX "" OUTPUT_NAME atmodem-pl
 
 # install
 INSTALL(TARGETS atmodem-plugin
-		LIBRARY DESTINATION lib/telephony/plugins/modems)
+		LIBRARY DESTINATION ${LIBDIR}/telephony/plugins/modems)
 
 INSTALL(FILES ${CMAKE_SOURCE_DIR}/res/wiki_mcc_mnc_oper_list.sql DESTINATION /tmp RENAME mcc_mnc_oper_list.sql)
 INSTALL(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION /usr/share/license RENAME tel-plugin-atmodem)

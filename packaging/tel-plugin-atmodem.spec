@@ -23,7 +23,8 @@ Telephony AT Modem library
 %setup -q
 
 %build
-cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
+cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+	-DLIB_INSTALL_DIR=%{_libdir}
 make %{?_smp_mflags}
 
 %post
