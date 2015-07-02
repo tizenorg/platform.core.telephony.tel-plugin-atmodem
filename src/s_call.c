@@ -29,36 +29,56 @@
 #include <core_object.h>
 #include <plugin.h>
 #include <queue.h>
-#include <server.h>
+#include <storage.h>
 #include <co_call.h>
 #include <user_request.h>
+#include <server.h>
 #include <at.h>
 
 #include "s_common.h"
 #include "s_call.h"
 
+static int __call_convert_handle_to_call_id(CoreObject *o, int handle)
+{
+	CallObject *co = NULL;
+	co = tcore_call_object_find_by_handle(o, handle);
+
+	if (co == NULL) {
+		err("CallObject with handle %d not found", handle);
+		return -1;
+	}
+	return tcore_call_object_get_id(co);
+}
+
 static enum tcore_call_status _call_status(unsigned int status)
 {
 	switch (status) {
-		case 0:
-			return TCORE_CALL_STATUS_ACTIVE;
-		case 1:
-			return TCORE_CALL_STATUS_HELD;
-		case 2:
-			return TCORE_CALL_STATUS_DIALING;
-		case 3:
-			return TCORE_CALL_STATUS_ALERT;
-		case 4:
-			return TCORE_CALL_STATUS_INCOMING;
-		case 5:
-			return TCORE_CALL_STATUS_WAITING;
-		case 6:
-			return TCORE_CALL_STATUS_DIALING; //connecting not exist. set to dialing
-		case 7:
-			return TCORE_CALL_STATUS_IDLE;
-		default:
-			return TCORE_CALL_STATUS_IDLE;
-			break;
+	case 0:
+		return TCORE_CALL_STATUS_ACTIVE;
+
+	case 1:
+		return TCORE_CALL_STATUS_HELD;
+
+	case 2:
+		return TCORE_CALL_STATUS_DIALING;
+
+	case 3:
+		return TCORE_CALL_STATUS_ALERT;
+
+	case 4:
+		return TCORE_CALL_STATUS_INCOMING;
+
+	case 5:
+		return TCORE_CALL_STATUS_WAITING;
+
+	case 6:
+		return TCORE_CALL_STATUS_DIALING; /* connecting not exist. set to dialing */
+
+	case 7:
+		return TCORE_CALL_STATUS_IDLE;
+
+	default:
+		return TCORE_CALL_STATUS_IDLE;
 	}
 
 	return TCORE_CALL_STATUS_IDLE;
@@ -69,10 +89,12 @@ static enum tcore_call_type _call_type(int type)
 	switch (type) {
 	case 0:
 		return TCORE_CALL_TYPE_VOICE;
+
 	case 1:
 		return TCORE_CALL_TYPE_VIDEO;
+
 	default:
-		break;
+	break;
 	}
 
 	err("invalid call type, returing default call type as voice");
@@ -82,7 +104,7 @@ static enum tcore_call_type _call_type(int type)
 static void _call_branch_by_status(CoreObject *co,
 	CallObject *call_obj, enum tcore_call_status call_state)
 {
-	guint call_id;
+	guint call_handle;
 	enum tcore_call_type call_type;
 	enum tcore_call_status state;
 	TcorePlugin *p = tcore_object_ref_plugin(co);
@@ -96,7 +118,7 @@ static void _call_branch_by_status(CoreObject *co,
 	}
 
 	call_type = tcore_call_object_get_type(call_obj);
-	call_id = tcore_call_object_get_id(call_obj);
+	call_handle = tcore_call_object_get_handle(call_obj);
 
 	/* Update Call status */
 	tcore_call_object_set_status(call_obj, call_state);
@@ -104,59 +126,63 @@ static void _call_branch_by_status(CoreObject *co,
 	if (call_type == TCORE_CALL_TYPE_VOICE) {	/* Voice call notification */
 		switch (call_state) {
 		case TCORE_CALL_STATUS_ACTIVE: {
-			struct tnoti_call_status_active data = {0,};
+			struct tnoti_call_status_active data = {0, };
 
 			data.type = call_type;
-			data.id = call_id;
+			data.handle = call_handle;
 
 			/* Send notification */
-			tcore_server_send_notification (tcore_plugin_ref_server(p), co,
+			tcore_server_send_notification(tcore_plugin_ref_server(p), co,
 				TNOTI_CALL_STATUS_ACTIVE,
 				sizeof(struct tnoti_call_status_active), &data);
-			}
-			break;
+		}
+		break;
+
 		case TCORE_CALL_STATUS_HELD: {
-			struct tnoti_call_status_held data = {0,};
+			struct tnoti_call_status_held data = {0, };
 
 			data.type = call_type;
-			data.id = call_id;
+			data.handle = call_handle;
 
 			/* Send notification */
-			tcore_server_send_notification (tcore_plugin_ref_server(p), co,
+			tcore_server_send_notification(tcore_plugin_ref_server(p), co,
 				TNOTI_CALL_STATUS_HELD,
 				sizeof(struct tnoti_call_status_held), &data);
-			}
-			break;
+		}
+		break;
+
 		case TCORE_CALL_STATUS_DIALING: {
-			struct tnoti_call_status_dialing data = {0,};
+			struct tnoti_call_status_dialing data = {0, };
 
 			data.type = call_type;
-			data.id = call_id;
+			data.handle = call_handle;
 
 			/* Send notification */
-			tcore_server_send_notification (tcore_plugin_ref_server(p), co,
+			tcore_server_send_notification(tcore_plugin_ref_server(p), co,
 				TNOTI_CALL_STATUS_DIALING,
 				sizeof(struct tnoti_call_status_dialing), &data);
-			}
-			break;
+		}
+		break;
+
 		case TCORE_CALL_STATUS_ALERT: {
-			struct tnoti_call_status_alert data = {0,};
+			struct tnoti_call_status_alert data = {0, };
 
 			data.type = call_type;
-			data.id = call_id;
+			data.handle = call_handle;
 
 			/* Send notification */
-			tcore_server_send_notification (tcore_plugin_ref_server(p), co,
+			tcore_server_send_notification(tcore_plugin_ref_server(p), co,
 				TNOTI_CALL_STATUS_ALERT,
 				sizeof(struct tnoti_call_status_alert), &data);
-			}
-			break;
+		}
+		break;
+
 		case TCORE_CALL_STATUS_INCOMING:
 		case TCORE_CALL_STATUS_WAITING: {
-			struct tnoti_call_status_incoming data = {0,};
+			struct tnoti_call_status_incoming data = {0, };
 
 			data.type = call_type;
-			data.id = call_id;
+			data.handle = call_handle;
 			tcore_call_object_get_number(call_obj, data.cli.number);
 			data.cli.mode = tcore_call_object_get_cli_mode(call_obj);
 			data.cna.mode = tcore_call_object_get_cna_mode(call_obj);
@@ -165,31 +191,34 @@ static void _call_branch_by_status(CoreObject *co,
 			data.active_line = tcore_call_object_get_active_line(call_obj);
 
 			/* Send notification */
-			tcore_server_send_notification (tcore_plugin_ref_server(p), co,
+			tcore_server_send_notification(tcore_plugin_ref_server(p), co,
 				TNOTI_CALL_STATUS_INCOMING,
 				sizeof(struct tnoti_call_status_incoming), &data);
-			}
-			break;
+		}
+		break;
+
 		case TCORE_CALL_STATUS_IDLE: {
 			struct tnoti_call_status_idle idle;
 
-			idle.id = call_id;
+			idle.handle = call_handle;
 			/* TODO - get proper call end cause. */
 			idle.cause = CALL_END_CAUSE_NONE;
 			idle.type = TCORE_CALL_TYPE_VOICE;
 
 			/* Send notification */
-			tcore_server_send_notification (tcore_plugin_ref_server(p), co,
+			tcore_server_send_notification(tcore_plugin_ref_server(p), co,
 				TNOTI_CALL_STATUS_IDLE,
 				sizeof(struct tnoti_call_status_idle), &idle);
 
 			/* Free Call object */
 			tcore_call_object_free(co, call_obj);
-			}
-			break;
+		}
+		break;
+
 		default:
-			/*Do nothing*/
+			/* Do nothing */
 			dbg("Default case executed.");
+		break;
 		}
 	} else {
 		err("Unknown Call type: [%d]", call_type);
@@ -199,7 +228,7 @@ static void _call_branch_by_status(CoreObject *co,
 static void _handle_call_get_call_list(CoreObject *co,
 	gboolean flag, void *data)
 {
-	gint call_id;
+	gint call_handle;
 	gint direction;
 	gint mode;
 	enum tcore_call_status state;
@@ -229,7 +258,7 @@ static void _handle_call_get_call_list(CoreObject *co,
 			err("Invalid call_id");
 			continue;
 		}
-		call_id = atoi(resp);
+		call_handle = atoi(resp);
 
 		resp = g_slist_nth_data(tokens, 1);
 		if (NULL == resp) {
@@ -260,7 +289,7 @@ static void _handle_call_get_call_list(CoreObject *co,
 		mpty = atoi(resp);
 
 		resp = g_slist_nth_data(tokens, 5);
-	  	if (NULL == resp) {
+		if (NULL == resp) {
 			err("Number is NULL");
 		} else {
 			/* Strike off double quotes */
@@ -275,25 +304,27 @@ static void _handle_call_get_call_list(CoreObject *co,
 
 				/* Check if number is International or National */
 				ton = ((num_type) >> 4) & 0x07;
-				if (ton == 1 && num[0] != '+') {
-					/* International number */
-					number[0] = '+';
-					memcpy(&number[1], num, strlen(num));
-				} else {
-					memcpy(number, num, strlen(num));
+				if (num) {
+					if (ton == 1 && num[0] != '+') {
+						/* International number */
+						number[0] = '+';
+						memcpy(&number[1], num, strlen(num));
+					} else {
+						memcpy(number, num, strlen(num));
+					}
 				}
 			}
 			g_free(num);
 		}
 
-		dbg("Call ID: [%d] Direction: [%s] Call Type: [%d] " \
+		dbg("Call Handle: [%d] Direction: [%s] Call Type: [%d] " \
 			"Multi-party: [%s] Number: [%s] Type-of-Number: [%d] State: [%d]", \
-			call_id, (direction ? "Outgoing" : "Incoming"),
+			call_handle, (direction ? "Outgoing" : "Incoming"),
 			mode, (mpty ? "YES" : "NO"), number, ton, state);
 
-		call_obj = tcore_call_object_find_by_id(co, call_id);
+		call_obj = tcore_call_object_find_by_handle(co, call_handle);
 		if (NULL == call_obj) {
-			call_obj = tcore_call_object_new(co, call_id);
+			call_obj = tcore_call_object_new(co);
 			if (NULL == call_obj) {
 				err("Unable to create call object");
 				continue;
@@ -362,7 +393,7 @@ static void _on_response_call_get_call_list(TcorePending *p,
 
 static int _call_get_call_list(CoreObject *co, gboolean flag)
 {
-	gboolean*data = NULL;
+	gboolean *data = NULL;
 	guint ret = -1;
 	dbg("Entry");
 
@@ -371,12 +402,17 @@ static int _call_get_call_list(CoreObject *co, gboolean flag)
 		return ret;
 	}
 	/* Response callback data */
-	data = g_try_malloc(sizeof (flag));
+	data = g_try_malloc(sizeof(flag));
+	if (data == NULL) {
+		err("Memory allocation failed!!");
+		return ret;
+	}
+
 	*data = flag;
 
 	/* Send Request to modem */
 	ret = tcore_prepare_and_send_at_request(co,
-		"AT+CLCC","+CLCC",
+		"AT+CLCC", "+CLCC",
 		TCORE_AT_MULTILINE,
 		NULL,
 		_on_response_call_get_call_list, data,
@@ -386,7 +422,7 @@ static int _call_get_call_list(CoreObject *co, gboolean flag)
 }
 
 
-// NOTIFICATION
+/* NOTIFICATION */
 static void __on_notification_call_incoming(CoreObject *co,
 	guint call_id, const void *data)
 {
@@ -421,11 +457,12 @@ static void __on_notification_call_incoming(CoreObject *co,
 	}
 
 	/* Create Call object */
-	call_obj = tcore_call_object_new(co, (guint)call_id);
+	call_obj = tcore_call_object_new(co);
 	if (NULL == call_obj) {
 		err(" Unable to create call object");
 		return;
 	}
+	tcore_call_object_set_id(call_obj, call_id);
 
 	lines = (GSList *)data;
 	if (lines == NULL) {
@@ -460,16 +497,17 @@ static void __on_notification_call_incoming(CoreObject *co,
 	mpty = atoi(resp);
 
 	resp = g_slist_nth_data(tokens, 5);
-  	if (NULL == resp) {
+	if (NULL == resp) {
 		err("Number is NULL");
 	} else {
 		/* Strike off double quotes */
 		num = tcore_at_tok_extract(resp);
-		dbg("Number: [%s]", num);
-
-		memcpy(number, num, strlen(num));
-		number[strlen(num)] = '\0';
-		g_free(num);
+		if (num) {
+			dbg("Number: [%s]", num);
+			memcpy(number, num, strlen(num));
+			number[strlen(num)] = '\0';
+			g_free(num);
+		}
 	}
 
 	dbg("Call ID: [%d] Direction: [%s] Call Type: [%d] " \
@@ -479,7 +517,7 @@ static void __on_notification_call_incoming(CoreObject *co,
 
 	/* Update Call Object */
 	tcore_call_object_set_type(call_obj, mode);
-	tcore_call_object_set_direction(call_obj, direction);
+	tcore_call_object_set_direction(call_obj, TCORE_CALL_DIRECTION_INCOMING);
 	tcore_call_object_set_multiparty_state(call_obj, mpty);
 	if (number[0] != '\0')
 		tcore_call_object_set_cli_info(call_obj,
@@ -502,9 +540,52 @@ static void __on_notification_call_status(CoreObject *co,
 {
 	CallObject *call_obj = NULL;
 
+	dbg("call_state = %d", call_state);
+
 	switch (call_state) {
 	case TCORE_CALL_STATUS_ACTIVE:
-	case TCORE_CALL_STATUS_HELD:
+	{
+		int prev_status;
+
+		dbg("TCORE_CALL_STATUS_ACTIVE");
+		call_obj = tcore_call_object_find_by_id(co, call_id);
+		if (call_obj == NULL) {
+			err("Unable to find Call Object - Call ID: [%d]", call_id);
+			return;
+		}
+		/*
+		* Active / Held status notification will be handled in _call_get_call_list().
+		* Because of timing issue, we should not notifity this event before updating call info.
+		* One exception is that we will send this event when active status is receviced during dialing or incoming.
+		*/
+		prev_status = tcore_call_object_get_status(call_obj);
+		if ((prev_status == TCORE_CALL_STATUS_DIALING)
+			|| (prev_status == TCORE_CALL_STATUS_ALERT)
+			|| (prev_status == TCORE_CALL_STATUS_INCOMING)
+			|| (prev_status == TCORE_CALL_STATUS_WAITING)) {
+			_call_branch_by_status(co, call_obj, call_state);
+		}
+	}
+	break;
+	case TCORE_CALL_STATUS_HELD:{
+		dbg("TCORE_CALL_STATUS_HELD");
+		call_obj = tcore_call_object_find_by_id(co, call_id);
+		if (!call_obj) {
+			call_obj = tcore_call_object_new(co);
+			if (!call_obj) {
+				err("Unable to create Call Object");
+				return;
+			}
+			tcore_call_object_set_id(call_obj, call_id);
+		}
+
+		/*
+		 * Make request to get current Call list.
+		 * Then send notification to application
+		 */
+		_call_get_call_list(co, TRUE);
+	}
+	break;
 	case TCORE_CALL_STATUS_ALERT:
 	case TCORE_CALL_STATUS_IDLE: {
 		call_obj = tcore_call_object_find_by_id(co, call_id);
@@ -521,11 +602,12 @@ static void __on_notification_call_status(CoreObject *co,
 	case TCORE_CALL_STATUS_DIALING: {
 		call_obj = tcore_call_object_find_by_id(co, call_id);
 		if (!call_obj) {
-			call_obj = tcore_call_object_new(co, call_id);
+			call_obj = tcore_call_object_new(co);
 			if (!call_obj) {
 				err("Unable to create Call Object");
 				return;
 			}
+			tcore_call_object_set_id(call_obj, call_id);
 		}
 
 		/*
@@ -608,7 +690,7 @@ static gboolean on_notification_call_cssu_info(CoreObject *co,
 	gchar *cmd = 0;
 	gint local_index = 0;
 	gint code2 = -1;
-	gchar number[MAX_CALL_NUMBER_LEN + 1] = {'\0',};
+	gchar number[MAX_CALL_NUMBER_LEN + 1] = {'\0', };
 	TcorePlugin *p = NULL;
 
 	dbg("Entry");
@@ -638,9 +720,11 @@ static gboolean on_notification_call_cssu_info(CoreObject *co,
 
 	if ((resp = g_slist_nth_data(tokens, 2))) {
 		resp = tcore_at_tok_extract((const gchar *)resp);
-		memcpy(number, resp, strlen(resp));
-		number[strlen(resp)] = '\0';;
-		g_free(resp);
+		if (resp) {
+			memcpy(number, resp, strlen(resp));
+			number[strlen(resp)] = '\0';;
+			g_free(resp);
+		}
 	}
 	dbg("+CSSU: <code2>: %d <index>: %d <number>: %s ", code2, local_index, number);
 
@@ -752,8 +836,8 @@ static void on_response_call_answer(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_answer*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_answer *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_ANSWER,
 			sizeof(struct tresp_call_answer), &resp);
@@ -791,8 +875,8 @@ static void on_response_call_release(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_end*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_end *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		resp.type = req_buf->type;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_END,
@@ -831,8 +915,8 @@ static void on_response_call_hold(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_hold*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_hold *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_HOLD,
 			sizeof(struct tresp_call_hold), &resp);
@@ -848,6 +932,7 @@ static void on_response_call_active(TcorePending *p,
 	struct treq_call_active *req_buf = NULL;
 	const struct tcore_at_response *at_resp = data;
 	UserRequest *ur = NULL;
+	CoreObject *core_obj = NULL;
 
 	dbg("Entry");
 
@@ -870,14 +955,18 @@ static void on_response_call_active(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_active*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_active *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_ACTIVE,
 			sizeof(struct tresp_call_active), &resp);
 	} else {
 		err("ur is NULL");
 	}
+
+	core_obj = tcore_pending_ref_core_object(p);
+	_call_get_call_list(core_obj, TRUE);
+
 }
 
 static void on_response_call_swap(TcorePending *p,
@@ -909,8 +998,8 @@ static void on_response_call_swap(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_swap*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_swap *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_SWAP,
 			sizeof(struct tresp_call_swap), &resp);
@@ -926,6 +1015,7 @@ static void on_response_call_join(TcorePending *p,
 	struct treq_call_join *req_buf = NULL;
 	const struct tcore_at_response *at_resp = data;
 	UserRequest *ur = NULL;
+	CoreObject *core_obj = NULL;
 
 	dbg("Entry");
 
@@ -948,14 +1038,18 @@ static void on_response_call_join(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_join*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_join *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_JOIN,
 			sizeof(struct tresp_call_join), &resp);
 	} else {
 		err("ur is NULL");
 	}
+
+	core_obj = tcore_pending_ref_core_object(p);
+	_call_get_call_list(core_obj, TRUE);
+
 }
 
 static void on_response_call_split(TcorePending *p,
@@ -987,14 +1081,15 @@ static void on_response_call_split(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_split*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_split *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_SPLIT,
 			sizeof(struct tresp_call_split), &resp);
 	} else {
 		err("ur is NULL");
 	}
+
 }
 
 static void on_response_call_deflect(TcorePending *p,
@@ -1026,8 +1121,8 @@ static void on_response_call_deflect(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_deflect*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_deflect *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_DEFLECT,
 			sizeof(struct tresp_call_deflect), &resp);
@@ -1065,8 +1160,8 @@ static void on_response_call_transfer(TcorePending *p,
 
 	ur = tcore_pending_ref_user_request(p);
 	if (ur) {
-		req_buf = (struct treq_call_transfer*) tcore_user_request_ref_data( ur, 0);
-		resp.id = req_buf->id;
+		req_buf = (struct treq_call_transfer *)tcore_user_request_ref_data(ur, 0);
+		resp.handle = req_buf->handle;
 		tcore_user_request_send_response(ur,
 			TRESP_CALL_TRANSFER,
 			sizeof(struct tresp_call_transfer), &resp);
@@ -1076,7 +1171,7 @@ static void on_response_call_transfer(TcorePending *p,
 }
 
  /* Request */
-static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur)
+static TReturn s_call_outgoing(CoreObject *o, UserRequest *ur)
 {
 	gchar *at_cmd;
 	const gchar *clir;
@@ -1086,7 +1181,7 @@ static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur)
 
 	dbg("Entry");
 
-	dial_info = (struct treq_call_dial*)tcore_user_request_ref_data( ur, 0);
+	dial_info = (struct treq_call_dial *)tcore_user_request_ref_data(ur, 0);
 
 	if (dial_info->type == CALL_TYPE_VIDEO) {
 		err("Video call is not supported in atmodem");
@@ -1124,7 +1219,7 @@ static TReturn s_call_outgoing( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_answer( CoreObject *o, UserRequest *ur)
+static TReturn s_call_answer(CoreObject *o, UserRequest *ur)
 {
 	gchar *at_cmd;
 	struct treq_call_answer *ans_info = NULL;
@@ -1132,7 +1227,7 @@ static TReturn s_call_answer( CoreObject *o, UserRequest *ur)
 
 	dbg("Entry");
 
-	ans_info = (struct treq_call_answer*)tcore_user_request_ref_data( ur, 0);
+	ans_info = (struct treq_call_answer *)tcore_user_request_ref_data(ur, 0);
 
 	if (ans_info->type == CALL_ANSWER_TYPE_ACCEPT) {
 		/* AT-Command */
@@ -1167,22 +1262,25 @@ static TReturn s_call_answer( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_release( CoreObject *o, UserRequest *ur)
+static TReturn s_call_release(CoreObject *o, UserRequest *ur)
 {
 	gchar *at_cmd;
 	struct treq_call_end *end_info = NULL;
 	TReturn ret = TCORE_RETURN_FAILURE;
+	int call_id;
 
 	dbg("Entry");
 
-	end_info = (struct treq_call_end*)tcore_user_request_ref_data( ur, 0);
+	end_info = (struct treq_call_end *)tcore_user_request_ref_data(ur, 0);
+
+	call_id = __call_convert_handle_to_call_id(o, end_info->handle);
 
 	if (end_info->type == CALL_END_TYPE_ALL) {
 		/* AT-Command */
-		at_cmd = g_strdup_printf("%s", "AT+CHLD=8");
+		at_cmd = g_strdup_printf("%s", "ATH");
 	} else if (end_info->type == CALL_END_TYPE_DEFAULT) {
 		/* AT-Command */
-		at_cmd = g_strdup_printf("%s%d", "AT+CHLD=1",end_info->id);
+		at_cmd = g_strdup_printf("%s%d", "AT+CHLD=1", call_id);
 	} else if (end_info->type == CALL_END_TYPE_ACTIVE_ALL) {
 		/* AT-Command */
 		at_cmd = g_strdup_printf("%s", "AT+CHLD=1");
@@ -1210,7 +1308,7 @@ static TReturn s_call_release( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_hold( CoreObject *o, UserRequest *ur)
+static TReturn s_call_hold(CoreObject *o, UserRequest *ur)
 {
 	TReturn ret = TCORE_RETURN_FAILURE;
 	gchar *at_cmd;
@@ -1233,7 +1331,7 @@ static TReturn s_call_hold( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_active( CoreObject *o, UserRequest *ur)
+static TReturn s_call_active(CoreObject *o, UserRequest *ur)
 {
 	TReturn ret = TCORE_RETURN_FAILURE;
 	gchar *at_cmd;
@@ -1256,7 +1354,7 @@ static TReturn s_call_active( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_swap( CoreObject *o, UserRequest *ur)
+static TReturn s_call_swap(CoreObject *o, UserRequest *ur)
 {
 	TReturn ret = TCORE_RETURN_FAILURE;
 	gchar *at_cmd;
@@ -1279,7 +1377,7 @@ static TReturn s_call_swap( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_join( CoreObject *o, UserRequest *ur)
+static TReturn s_call_join(CoreObject *o, UserRequest *ur)
 {
 	TReturn ret = TCORE_RETURN_FAILURE;
 	gchar *at_cmd;
@@ -1302,17 +1400,19 @@ static TReturn s_call_join( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_split( CoreObject *o, UserRequest *ur)
+static TReturn s_call_split(CoreObject *o, UserRequest *ur)
 {
 	gchar *at_cmd;
 	struct treq_call_split *split_info = NULL;
 	TReturn ret = TCORE_RETURN_FAILURE;
+	int call_id;
 
 	dbg("Entry");
 
-	split_info = (struct treq_call_split*)tcore_user_request_ref_data( ur, 0);
+	split_info = (struct treq_call_split *)tcore_user_request_ref_data(ur, 0);
+	call_id = __call_convert_handle_to_call_id(o, split_info->handle);
 
-	at_cmd = g_strdup_printf("%s%d", "AT+CHLD=2", split_info->id);
+	at_cmd = g_strdup_printf("%s%d", "AT+CHLD=2", call_id);
 
 	/* AT-Command */
 	dbg(" at command : %s", at_cmd);
@@ -1330,7 +1430,7 @@ static TReturn s_call_split( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_deflect( CoreObject *o, UserRequest *ur)
+static TReturn s_call_deflect(CoreObject *o, UserRequest *ur)
 {
 	gchar *at_cmd;
 	struct treq_call_deflect *deflect_info = NULL;
@@ -1338,7 +1438,7 @@ static TReturn s_call_deflect( CoreObject *o, UserRequest *ur)
 
 	dbg("Entry");
 
-	deflect_info = (struct treq_call_deflect*)tcore_user_request_ref_data( ur, 0);
+	deflect_info = (struct treq_call_deflect *)tcore_user_request_ref_data(ur, 0);
 
 	at_cmd = g_strdup_printf("AT+CTFR=%s", deflect_info->number);
 	dbg("at command : %s", at_cmd);
@@ -1356,7 +1456,7 @@ static TReturn s_call_deflect( CoreObject *o, UserRequest *ur)
 	return ret;
 }
 
-static TReturn s_call_transfer( CoreObject *o, UserRequest *ur)
+static TReturn s_call_transfer(CoreObject *o, UserRequest *ur)
 {
 	TReturn ret = TCORE_RETURN_FAILURE;
 	gchar *at_cmd;
@@ -1376,6 +1476,32 @@ static TReturn s_call_transfer( CoreObject *o, UserRequest *ur)
 	/* Free resources */
 	g_free(at_cmd);
 
+	return ret;
+}
+
+static TReturn s_get_preferred_voice_subscription(CoreObject *o, UserRequest *ur)
+{
+	struct tresp_call_get_preferred_voice_subscription resp_data = {0, };
+	TReturn ret = TCORE_RETURN_FAILURE;
+	Server *server;
+	Storage *strg = NULL;
+
+	dbg("Entry");
+
+	server = tcore_plugin_ref_server(tcore_object_ref_plugin(o));
+	strg = tcore_server_find_storage(server, "vconf");
+
+	/* VCONFKEY is aligned to resp_data->preferred_subs type */
+	resp_data.preferred_subs = tcore_storage_get_int(strg, STORAGE_KEY_TELEPHONY_PREFERRED_VOICE_SUBSCRIPTION);
+	dbg("Preferred Subscription: [%d]", resp_data.preferred_subs);
+
+	resp_data.err = CALL_ERROR_NONE;
+	/* Send Response */
+	ret = tcore_user_request_send_response(ur,
+		TRESP_CALL_GET_PREFERRED_VOICE_SUBSCRIPTION,
+		sizeof(struct tresp_call_get_preferred_voice_subscription), &resp_data);
+
+	dbg("ret: [0x%x]", ret);
 	return ret;
 }
 
@@ -1400,7 +1526,7 @@ static struct tcore_call_operations call_ops = {
 	.set_sound_mute_status = NULL,
 	.get_sound_mute_status = NULL,
 	.set_preferred_voice_subscription = NULL,
-	.get_preferred_voice_subscription = NULL,
+	.get_preferred_voice_subscription = s_get_preferred_voice_subscription,
 };
 
 gboolean s_call_init(TcorePlugin *p, TcoreHal *h)
@@ -1413,13 +1539,13 @@ gboolean s_call_init(TcorePlugin *p, TcoreHal *h)
 	if (!o)
 		return FALSE;
 
-	tcore_object_add_callback( o, "+SCLCC", on_notification_call_status, NULL);
-	tcore_object_add_callback( o, "+CSSU:", on_notification_call_cssu_info, NULL);
+	tcore_object_add_callback(o, "+SCLCC", on_notification_call_status, NULL);
+	tcore_object_add_callback(o, "+CSSU:", on_notification_call_cssu_info, NULL);
 
 	return TRUE;
 }
 
-void s_call_exit( TcorePlugin *p)
+void s_call_exit(TcorePlugin *p)
 {
 	CoreObject *o;
 

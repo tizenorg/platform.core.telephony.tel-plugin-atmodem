@@ -47,8 +47,11 @@
 
 
 #define ALLOC_METAINFO()	do { \
-	file_meta = g_malloc0(sizeof(sim_meta_info_t)); \
-	dbg("Allocated - file_meta: [%p]", file_meta); \
+	file_meta = g_try_malloc0(sizeof(sim_meta_info_t)); \
+	if (file_meta == NULL) { \
+		err("Memory allocation failed!!"); \
+		return TCORE_RETURN_ENOMEM; \
+	} \
 } while (0)
 
 #define FREE_METAINFO()	do { \
@@ -64,11 +67,11 @@
 }
 
 typedef enum {
-	SIM_FILE_TYPE_DEDICATED = 0x00,	/**< Dedicated */
-	SIM_FILE_TYPE_TRANSPARENT = 0x01,	/**< Transparent -binary type*/
-	SIM_FILE_TYPE_LINEAR_FIXED = 0x02,	/**< Linear fixed - record type*/
-	SIM_FILE_TYPE_CYCLIC = 0x04,	/**< Cyclic - record type*/
-	SIM_FILE_TYPE_INVALID_TYPE = 0xFF	/**< Invalid type */
+	SIM_FILE_TYPE_DEDICATED = 0x00, /**< Dedicated */
+	SIM_FILE_TYPE_TRANSPARENT = 0x01, /**< Transparent -binary type*/
+	SIM_FILE_TYPE_LINEAR_FIXED = 0x02, /**< Linear fixed - record type*/
+	SIM_FILE_TYPE_CYCLIC = 0x04, /**< Cyclic - record type*/
+	SIM_FILE_TYPE_INVALID_TYPE = 0xFF /**< Invalid type */
 } sim_file_type_t;
 
 typedef enum {
@@ -83,7 +86,7 @@ typedef enum {
 	SIM_CURR_SEC_OP_PIN1_ENABLE,
 	SIM_CURR_SEC_OP_PIN1_DISABLE,
 	SIM_CURR_SEC_OP_PIN2_ENABLE,
-	SIM_CURR_SEC_OP_PIN2_DISABLE, // 10
+	SIM_CURR_SEC_OP_PIN2_DISABLE, /* 10 */
 	SIM_CURR_SEC_OP_SIM_ENABLE,
 	SIM_CURR_SEC_OP_SIM_DISABLE,
 	SIM_CURR_SEC_OP_NET_ENABLE,
@@ -93,7 +96,7 @@ typedef enum {
 	SIM_CURR_SEC_OP_SP_ENABLE,
 	SIM_CURR_SEC_OP_SP_DISABLE,
 	SIM_CURR_SEC_OP_CP_ENABLE,
-	SIM_CURR_SEC_OP_CP_DISABLE, // 20
+	SIM_CURR_SEC_OP_CP_DISABLE, /* 20 */
 	SIM_CURR_SEC_OP_FDN_ENABLE,
 	SIM_CURR_SEC_OP_FDN_DISABLE,
 	SIM_CURR_SEC_OP_PIN1_STATUS,
@@ -108,39 +111,41 @@ typedef enum {
 } sim_sec_op_t;
 
 typedef enum {
-	SEC_LOCK_TYPE_NONE =0,
-	SEC_LOCK_TYPE_READY,	/*  ME is not locked */
-	SEC_LOCK_TYPE_PS,		/* PH-SIM, Lock Phone to SIM/UICC card(MT asks password when other than current SIM/UICC card inserted; MT may remember certain amount of
-                                                         previously used cards thus not requiring password when they are inserted ) */
-	SEC_LOCK_TYPE_PF,	/*  PH-FSIM, Lock Phone to the very First  inserted SIM/UICC card ( MT asks password when other than the first SIM/UICC card is inserted ) */
-	SEC_LOCK_TYPE_SC,	/*Lock SIM/UICC card ( SIM asks password in ME power-up and when this command is issued ) */
-	SEC_LOCK_TYPE_FD,	/* SIM card or active application in the UICC(GSM or USIM) fixed dialing memory feature */
-	SEC_LOCK_TYPE_PN,		/*  Network Personalization */
-	SEC_LOCK_TYPE_PU,	/*  Network subset Personalization */
-	SEC_LOCK_TYPE_PP,	/*  Service Provider Personalization */
-	SEC_LOCK_TYPE_PC,	/*  Corporate Personalization */
-	SEC_LOCK_TYPE_SC2,	/*  Lock PIN2 ( ... ) */
-	SEC_LOCK_TYPE_PUK2,	/*  Lock PUK2 (... ) */
-	SEC_LOCK_TYPE_ACL,	/* ACL */
+	SEC_LOCK_TYPE_NONE = 0,
+	SEC_LOCK_TYPE_READY, /*  ME is not locked */
+	SEC_LOCK_TYPE_PS, /* PH-SIM, Lock Phone to SIM/UICC card(MT asks password when
+				other than current SIM/UICC card inserted; MT may remember
+				certain amount of previously used cards thus not requiring
+				password when they are inserted ) */
+	SEC_LOCK_TYPE_PF, /*  PH-FSIM, Lock Phone to the very First  inserted SIM/UICC card ( MT asks password when other than the first SIM/UICC card is inserted ) */
+	SEC_LOCK_TYPE_SC, /*Lock SIM/UICC card ( SIM asks password in ME power-up and when this command is issued ) */
+	SEC_LOCK_TYPE_FD, /* SIM card or active application in the UICC(GSM or USIM) fixed dialing memory feature */
+	SEC_LOCK_TYPE_PN, /*  Network Personalization */
+	SEC_LOCK_TYPE_PU, /*  Network subset Personalization */
+	SEC_LOCK_TYPE_PP, /*  Service Provider Personalization */
+	SEC_LOCK_TYPE_PC, /*  Corporate Personalization */
+	SEC_LOCK_TYPE_SC2, /*  Lock PIN2 ( ... ) */
+	SEC_LOCK_TYPE_PUK2, /*  Lock PUK2 (... ) */
+	SEC_LOCK_TYPE_ACL, /* ACL */
 
-	SEC_LOCK_TYPE_NO_SIM,		/* SIM is not inserted */
-	SEC_LOCK_TYPE_UNAVAIL,	/*  SIM is inserted but can not communicate with SIM ( SIM interface error ) */
-	SEC_SIM_INIT_COMPLETED,	/*  SIM Initialize Completed */
-	SEC_PB_INIT_COMPLETED,	/*  Phonebook Initialize Completed*/
-	SEC_SIM_INIT_CRASH,		/*  SIM Crash request from SMC lab*/
+	SEC_LOCK_TYPE_NO_SIM, /* SIM is not inserted */
+	SEC_LOCK_TYPE_UNAVAIL, /*  SIM is inserted but can not communicate with SIM ( SIM interface error ) */
+	SEC_SIM_INIT_COMPLETED, /*  SIM Initialize Completed */
+	SEC_PB_INIT_COMPLETED, /*  Phonebook Initialize Completed*/
+	SEC_SIM_INIT_CRASH, /*  SIM Crash request from SMC lab*/
 
 	SEC_LOCK_TYPE_MAX
 } sim_sec_lock_type_t;
 
 typedef enum {
 	SEC_LOCK_KEY_NONE,
-	SEC_LOCK_KEY_UNLOCKED,		/* Not necessary */
-	SEC_LOCK_KEY_PIN,		/* PIN required as a password */
-	SEC_LOCK_KEY_PUK,		/* 0PUK required as a password */
-	SEC_LOCK_KEY_PIN2,		/* PIN2 required as a password */
-	SEC_LOCK_KEY_PUK2,		/*  PUK2 required as a password */
-	SEC_LOCK_KEY_PERM_BLOCKED,    /* PIN Permanent Blocked */
-	SEC_LOCK_KEY_PIN2_DISABLE,     /* PIN2 Lock Disabled*/
+	SEC_LOCK_KEY_UNLOCKED, /* Not necessary */
+	SEC_LOCK_KEY_PIN, /* PIN required as a password */
+	SEC_LOCK_KEY_PUK, /* 0PUK required as a password */
+	SEC_LOCK_KEY_PIN2, /* PIN2 required as a password */
+	SEC_LOCK_KEY_PUK2, /*  PUK2 required as a password */
+	SEC_LOCK_KEY_PERM_BLOCKED, /* PIN Permanent Blocked */
+	SEC_LOCK_KEY_PIN2_DISABLE, /* PIN2 Lock Disabled*/
 	SEC_LOCK_KEY_MAX
 } sim_sec_lock_key_t;
 
@@ -150,25 +155,23 @@ typedef struct {
 } sim_private_info_t;
 
 typedef struct {
-	gboolean b_valid;					/**< Valid or not */
-	guint rec_length;					/**< Length of one record in file */
-	guint rec_count;					/**< Number of records in file */
-	guint data_size;					/**< File size */
-	guint current_index;					/**< Current index to read */
-	sim_file_type_t file_type;				/**< File type and structure */
-//	sim_sec_op_t sec_op;					/**< Current index to read */
-	struct tel_sim_mbi_list mbi_list;				/**< Mailbox List */
-	struct tel_sim_mb_number mb_list[SIM_MSP_CNT_MAX*5];	/**< Mailbox number */
-	enum tel_sim_file_id file_id;					/**< Current file id */
-	TReturn file_result;				/**< File access result */
-	struct tresp_sim_read files;					/**< File read data */
-	enum tcore_request_command req_command;				/**< Request command Id */
-	struct tel_sim_imsi imsi;					/**< Stored locally as of now,
-								          Need to store in secure storage*/
+	gboolean b_valid; /**< Valid or not */
+	guint rec_length; /**< Length of one record in file */
+	guint rec_count; /**< Number of records in file */
+	guint data_size; /**< File size */
+	guint current_index; /**< Current index to read */
+	sim_file_type_t file_type; /**< File type and structure */
+	struct tel_sim_mbi_list mbi_list; /**< Mailbox List */
+	struct tel_sim_mb_number mb_list[SIM_MSP_CNT_MAX * 5]; /**< Mailbox number */
+	enum tel_sim_file_id file_id; /**< Current file id */
+	TReturn file_result; /**< File access result */
+	struct tresp_sim_read files; /**< File read data */
+	enum tcore_request_command req_command; /**< Request command Id */
+	struct tel_sim_imsi imsi; /**< Stored locally as of now,
+				Need to store in secure storage*/
 } sim_meta_info_t;
 
 /* Request Function Declaration */
-//static TReturn __sim_get_imsi(CoreObject *co_sim, UserRequest *ur);
 static TReturn __sim_get_ecc(CoreObject *co_sim, UserRequest *ur);
 static TReturn __sim_get_spdi(CoreObject *co_sim, UserRequest *ur);
 static TReturn __sim_get_spn(CoreObject *co_sim, UserRequest *ur);
@@ -188,9 +191,8 @@ static TReturn __sim_decode_status_word(unsigned short status_word1, unsigned sh
 static void __sim_update_sim_status(CoreObject *co_sim, enum tel_sim_status sim_status);
 static void __sim_get_sim_type(CoreObject *co_sim);
 static const char *__sim_get_fac_from_lock_type(enum tel_sim_facility_type lock_type);
-//static int __sim_get_lock_type(sim_sec_op_t sec_op);
-static gboolean __convert_scpin_str_to_enum(char* line,
-	sim_sec_lock_type_t* lock_type, sim_sec_lock_key_t* lock_key);
+static gboolean __convert_scpin_str_to_enum(char *line,
+	sim_sec_lock_type_t *lock_type, sim_sec_lock_key_t *lock_key);
 
 /* Internal Response Functions*/
 static void __sim_next_from_read_data(CoreObject *co_sim, UserRequest *ur,
@@ -211,7 +213,11 @@ static gboolean __util_hexstring_to_bytes(gchar *hex_str,
 #define SIM_READ_FILE(co_sim, cb, cb_data, fileId, ret)	do { \
 	sim_meta_info_t *file_meta = {0, }; \
 	\
-	ALLOC_METAINFO(); \
+	file_meta = g_try_malloc0(sizeof(sim_meta_info_t)); \
+	if (file_meta == NULL) { \
+		err("Memory allocation failed!!"); \
+		return; \
+	} \
 	file_meta->file_id = fileId; \
 	file_meta->file_result = SIM_ACCESS_FAILED; \
 	\
@@ -244,8 +250,11 @@ static gboolean __util_hexstring_to_bytes(gchar *hex_str,
 
 	hex_str_len = strlen(hex_str);
 
-	byte_str = g_malloc0((hex_str_len / 2) + 1);
-
+	byte_str = g_try_malloc0((hex_str_len / 2) + 1);
+	if (byte_str == NULL) {
+		err("Memory allocation failed!!");
+		return FALSE;
+	}
 	dbg("Convert String to Binary!!!");
 	for (i = 0; i < hex_str_len; i += 2) {
 		byte_str[i / 2] = (gchar)((__util_hexchar_to_int(hex_str[i]) << 4)
@@ -361,35 +370,6 @@ static enum tcore_response_command __find_resp_command(UserRequest *ur)
 	return TRESP_UNKNOWN;
 }
 
-#if 0
-static void __sim_set_identity(CoreObject *co_sim, struct tel_sim_imsi *imsi)
-{
-	gchar new_imsi[15 + 1] = {0, };
-	gchar *old_imsi;
-
-	memcpy(&new_imsi, imsi->mcc, strlen(imsi->mcc));
-	memcpy(&new_imsi[strlen(imsi->mcc)], imsi->mnc, strlen(imsi->mnc));
-	memcpy(&new_imsi[strlen(imsi->mcc) + strlen(imsi->mnc)], imsi->msin, strlen(imsi->msin));
-
-	/* TODO: This is temporary code, we should use secure storage instead of vconf */
-	old_imsi = vconf_get_str("db/telephony/imsi");
-	if (old_imsi) {
-		if (g_strcmp0(old_imsi, new_imsi) != 0) {
-			dbg("New SIM");
-			vconf_set_str("db/telephony/imsi", new_imsi);
-			tcore_sim_set_identification(co_sim, TRUE);
-		} else {
-			dbg("Same SIM");
-			tcore_sim_set_identification(co_sim, FALSE);
-		}
-	} else {
-		dbg("Old IMSI value is NULL, set IMSI");
-		vconf_set_str("db/telephony/imsi", new_imsi);
-		tcore_sim_set_identification(co_sim, TRUE);
-	}
-}
-#endif
-
 /* Utility Functions */
 static TReturn __sim_decode_status_word(unsigned short status_word1,
 	unsigned short status_word2)
@@ -477,10 +457,10 @@ static TReturn __sim_decode_status_word(unsigned short status_word1,
 		rst = SIM_ACCESS_FAILED;
 		dbg("error -Incorrect parameters [%x][%x]", status_word1, status_word2);
 	} else if (status_word1 == 0x6A && status_word2 == 0x82) {
-		rst = SIM_ACCESS_FILE_NOT_FOUND; // not sure of the SW1 and SW2 meaning here
+		rst = SIM_ACCESS_FILE_NOT_FOUND; /* not sure of the SW1 and SW2 meaning here */
 		dbg("error -File Not found [%x][%x]", status_word1, status_word2);
 	} else if (status_word1 == 0x6A && status_word2 == 0x83) {
-		rst = SIM_ACCESS_FILE_NOT_FOUND; // not sure of the SW1 and SW2 meaning here
+		rst = SIM_ACCESS_FILE_NOT_FOUND; /* not sure of the SW1 and SW2 meaning here */
 		dbg("error -Record Not found [%x][%x]", status_word1, status_word2);
 	} else {
 		rst = SIM_ACCESS_CARD_ERROR;
@@ -519,13 +499,13 @@ static void __sim_update_sim_status(CoreObject *co_sim,
 	}
 }
 
-static gboolean __convert_scpin_str_to_enum(char* line,
+static gboolean __convert_scpin_str_to_enum(char *line,
 		sim_sec_lock_type_t *lock_type, sim_sec_lock_key_t *lock_key)
 {
-	char *type =NULL, *key = NULL;
+	char *type = NULL, *key = NULL;
 	GSList *tokens = NULL;
 
-	if(line == NULL)
+	if (line == NULL)
 		return FALSE;
 
 	tokens = tcore_at_tok_new(line);
@@ -548,63 +528,63 @@ static gboolean __convert_scpin_str_to_enum(char* line,
 		dbg("type: [%s], key: [%s]", type, key);
 	}
 
-	if(g_str_has_prefix (type, "NO_SIM"))
+	if (g_str_has_prefix(type, "NO_SIM"))
 		*lock_type = SEC_LOCK_TYPE_NO_SIM;
-	else if(g_str_has_prefix (type, "UNAVAIL"))
+	else if (g_str_has_prefix(type, "UNAVAIL"))
 		*lock_type = SEC_LOCK_TYPE_UNAVAIL;
-	else if(g_str_has_prefix (type, "NO_LOCK"))
+	else if (g_str_has_prefix(type, "NO_LOCK"))
 		*lock_type =  SEC_LOCK_TYPE_READY;
-	else if(g_str_has_prefix (type, "LOCK_PS"))
+	else if (g_str_has_prefix(type, "LOCK_PS"))
 		*lock_type =  SEC_LOCK_TYPE_PS;
-	else if(g_str_has_prefix (type, "LOCK_PF"))
-		*lock_type = SEC_LOCK_TYPE_PF ;
-	else if(g_str_has_prefix (type, "LOCK_SC"))
+	else if (g_str_has_prefix(type, "LOCK_PF"))
+		*lock_type = SEC_LOCK_TYPE_PF;
+	else if (g_str_has_prefix(type, "LOCK_SC"))
 		*lock_type =  SEC_LOCK_TYPE_SC;
-	else if(g_str_has_prefix (type, "LOCK_FD"))
+	else if (g_str_has_prefix(type, "LOCK_FD"))
 		*lock_type =  SEC_LOCK_TYPE_FD;
-	else if(g_str_has_prefix (type, "LOCK_PN"))
-		*lock_type = SEC_LOCK_TYPE_PN ;
-	else if(g_str_has_prefix (type, "LOCK_PU"))
-		*lock_type = SEC_LOCK_TYPE_PU ;
-	else if(g_str_has_prefix (type, "LOCK_PP"))
+	else if (g_str_has_prefix(type, "LOCK_PN"))
+		*lock_type = SEC_LOCK_TYPE_PN;
+	else if (g_str_has_prefix(type, "LOCK_PU"))
+		*lock_type = SEC_LOCK_TYPE_PU;
+	else if (g_str_has_prefix(type, "LOCK_PP"))
 		*lock_type =  SEC_LOCK_TYPE_PP;
-	else if(g_str_has_prefix (type, "LOCK_PC"))
+	else if (g_str_has_prefix(type, "LOCK_PC"))
 		*lock_type =  SEC_LOCK_TYPE_PC;
-	else if(g_str_has_prefix (type, "LOCK_SC2"))
-		*lock_type = SEC_LOCK_TYPE_SC2 ;
-	else if(g_str_has_prefix (type, "LOCK_ACL"))
+	else if (g_str_has_prefix(type, "LOCK_SC2"))
+		*lock_type = SEC_LOCK_TYPE_SC2;
+	else if (g_str_has_prefix(type, "LOCK_ACL"))
 		*lock_type = SEC_LOCK_TYPE_ACL;
-	else if(g_str_has_prefix (type, "LOCK_PUK2"))
+	else if (g_str_has_prefix(type, "LOCK_PUK2"))
 		*lock_type = SEC_LOCK_TYPE_PUK2;
-	else if(g_str_has_prefix (type, "INIT_COMP"))
+	else if (g_str_has_prefix(type, "INIT_COMP"))
 		*lock_type = SEC_SIM_INIT_COMPLETED;
-	else if(g_str_has_prefix (type, "INIT_ERROR"))
+	else if (g_str_has_prefix(type, "INIT_ERROR"))
 		*lock_type = SEC_SIM_INIT_CRASH;
 	else
 		*lock_type = SEC_LOCK_TYPE_NONE;
 
-	if(g_str_has_prefix (key, "PIN"))
+	if (g_str_has_prefix(key, "PIN"))
 		*lock_key = SEC_LOCK_KEY_PIN;
-	else if(g_str_has_prefix (key, "PUK"))
+	else if (g_str_has_prefix(key, "PUK"))
 		*lock_key = SEC_LOCK_KEY_PUK;
-	else if(g_str_has_prefix (key, "PIN2"))
+	else if (g_str_has_prefix(key, "PIN2"))
 		*lock_key =  SEC_LOCK_KEY_PIN2;
-	else if(g_str_has_prefix (key, "PUK2"))
+	else if (g_str_has_prefix(key, "PUK2"))
 		*lock_key =  SEC_LOCK_KEY_PUK2;
-	else if(g_str_has_prefix (key, "BLOCKED"))
-		*lock_key = SEC_LOCK_KEY_PERM_BLOCKED ;
-	else if(g_str_has_prefix (key, "UNLOCKED"))
-		*lock_key = SEC_LOCK_KEY_UNLOCKED ;
-	else if(g_str_has_prefix (key, "PIN2_DISABLE"))
+	else if (g_str_has_prefix(key, "BLOCKED"))
+		*lock_key = SEC_LOCK_KEY_PERM_BLOCKED;
+	else if (g_str_has_prefix(key, "UNLOCKED"))
+		*lock_key = SEC_LOCK_KEY_UNLOCKED;
+	else if (g_str_has_prefix(key, "PIN2_DISABLE"))
 		*lock_key =  SEC_LOCK_KEY_PIN2_DISABLE;
 	else
 		*lock_key = SEC_LOCK_KEY_NONE;
 
-	if(*lock_type ==  SEC_LOCK_TYPE_READY)
+	if (*lock_type ==  SEC_LOCK_TYPE_READY)
 		*lock_key = SEC_LOCK_KEY_UNLOCKED;
 
-	if((*lock_type == SEC_LOCK_TYPE_NO_SIM)||(*lock_type == SEC_LOCK_TYPE_UNAVAIL)||
-			(*lock_type == SEC_SIM_INIT_COMPLETED)||(*lock_type == SEC_SIM_INIT_CRASH))
+	if ((*lock_type == SEC_LOCK_TYPE_NO_SIM) || (*lock_type == SEC_LOCK_TYPE_UNAVAIL) ||
+			(*lock_type == SEC_SIM_INIT_COMPLETED) || (*lock_type == SEC_SIM_INIT_CRASH))
 		*lock_key = SEC_LOCK_KEY_NONE;
 
 	dbg("type: [%d], key: [%d]", *lock_type, *lock_key);
@@ -647,8 +627,11 @@ static void __on_response_sim_get_sim_type(TcorePending *p,
 
 				/* Update SIM type */
 				tcore_sim_set_type(co_sim, sim_type);
-			}
-			else {
+				if (sim_type == 1)
+					tcore_sim_set_app_list(co_sim, SIM_APP_TYPE_SIM);
+				else if (sim_type == 2)
+					tcore_sim_set_app_list(co_sim, SIM_APP_TYPE_USIM);
+			} else {
 				err("Invalid message");
 			}
 
@@ -738,7 +721,7 @@ static void __sim_process_sim_status(CoreObject *co_sim,
 static const char *__sim_get_fac_from_lock_type(enum tel_sim_facility_type lock_type)
 {
 	char *fac = NULL;
-	switch(lock_type) {
+	switch (lock_type) {
 	case SIM_FACILITY_PS:
 		fac = (char *)"PS";
 	break;
@@ -974,12 +957,6 @@ static void __sim_next_from_read_data(CoreObject *co_sim, UserRequest *ur,
 	case SIM_EF_CPHS_OPERATOR_NAME_STRING:
 	{
 		file_meta->files.result = sim_result;
-		if (decode_ret == TRUE && sim_result == SIM_ACCESS_SUCCESS) {
-			memcpy(file_meta->files.data.cphs_net.full_name,
-				file_meta->files.data.cphs_net.full_name,
-				strlen((char *)file_meta->files.data.cphs_net.full_name));
-		}
-
 		file_meta->file_id = SIM_EF_CPHS_OPERATOR_NAME_SHORT_FORM_STRING;
 		file_meta->file_result = SIM_ACCESS_FAILED;
 		ur = tcore_user_request_ref(ur);
@@ -988,10 +965,6 @@ static void __sim_next_from_read_data(CoreObject *co_sim, UserRequest *ur,
 	break;
 
 	case SIM_EF_CPHS_OPERATOR_NAME_SHORT_FORM_STRING:
-		if (sim_result == SIM_ACCESS_SUCCESS) {
-			file_meta->files.result = SIM_ACCESS_SUCCESS;
-		}
-
 		dbg("Sending response");
 
 		file_meta->files.result = sim_result;
@@ -1093,7 +1066,7 @@ static void __sim_next_from_get_response(CoreObject *co_sim, UserRequest *ur,
 				__sim_get_response(co_sim, ur, file_meta);
 			} else if (SIM_TYPE_USIM == card_type) {
 				dbg(" [SIM DATA]fail to get Language information "\
-					"in USIM(EF-LI(6F05),EF-PL(2F05))");
+					"in USIM(EF-LI(6F05), EF-PL(2F05))");
 
 				file_meta->files.result = sim_result;
 				tcore_user_request_send_response(ur,
@@ -1198,13 +1171,12 @@ static void __sim_next_from_get_response(CoreObject *co_sim, UserRequest *ur,
 		if (sim_result == SIM_ACCESS_SUCCESS) {
 			__sim_read_binary(co_sim, ur, file_meta);
 		} else {
-		/* Emulator does not support ICCID, thus need to send dummy ICCID for SDK ITC test */
+			/* Emulator does not support ICCID, thus need to send dummy ICCID for SDK ITC test */
 			g_strlcpy(file_meta->files.data.iccid.iccid, SIM_ICCID, SIM_ICCID_LEN_MAX);
 			file_meta->files.result = SIM_ACCESS_SUCCESS;
-			if (tcore_user_request_ref_communicator(ur)) {	//external call
+			if (tcore_user_request_ref_communicator(ur)) /* external call */
 				 tcore_user_request_send_response(ur, __find_resp_command(ur),
 							sizeof(struct tresp_sim_read), &file_meta->files);
-			 }
 		}
 	}
 	break;
@@ -1267,10 +1239,9 @@ static void __sim_next_from_get_response(CoreObject *co_sim, UserRequest *ur,
 		/* Emulator does not support MSISDN, thus need to send MSISDN count as ZERO for SDK ITC test */
 			file_meta->files.data.msisdn_list.count = 0;
 			file_meta->files.result = SIM_ACCESS_SUCCESS;
-			if (tcore_user_request_ref_communicator(ur)) {	//external call
+			if (tcore_user_request_ref_communicator(ur)) /* external call */
 				 tcore_user_request_send_response(ur, __find_resp_command(ur),
 							sizeof(struct tresp_sim_read), &file_meta->files);
-			 }
 		}
 	}
 	break;
@@ -1360,10 +1331,10 @@ static void __on_response_sim_read_data(TcorePending *p,
 				if (dr == FALSE) {
 					err("IMSI decoding failed");
 				} else {
-					//__sim_set_identity(co_sim, &file_meta->imsi);
-
 					/* Update IMSI */
 					tcore_sim_set_imsi(co_sim, &file_meta->imsi);
+					/* SIM is not changed in SDK */
+					tcore_sim_set_identification(co_sim, FALSE);
 				}
 			}
 			break;
@@ -1377,8 +1348,7 @@ static void __on_response_sim_read_data(TcorePending *p,
 			case SIM_EF_ELP:		/* 2G EF - 2 bytes decoding */
 			case SIM_EF_USIM_LI:	/* 3G EF - 2 bytes decoding */
 			case SIM_EF_USIM_PL:	/* 3G EF - same as EFELP, so 2 byte decoding */
-			case SIM_EF_LP: 		/* 1 byte encoding */
-			{
+			case SIM_EF_LP: {	/* 1 byte encoding */
 				card_type = tcore_sim_get_type(co_sim);
 				if ((SIM_TYPE_GSM == card_type)
 						&& (file_meta->file_id == SIM_EF_LP)) {
@@ -1415,21 +1385,19 @@ static void __on_response_sim_read_data(TcorePending *p,
 
 				card_type = tcore_sim_get_type(co_sim);
 				file_meta->files.data.svct.sim_type = card_type;
-				if (SIM_TYPE_GSM == card_type) {
+				if (SIM_TYPE_GSM == card_type)
 					dr = tcore_sim_decode_sst(&file_meta->files.data.svct.table.sst,
 						(unsigned char *)res, res_len);
-				} else if (SIM_TYPE_USIM == card_type) {
+				else if (SIM_TYPE_USIM == card_type)
 					dr = tcore_sim_decode_ust(&file_meta->files.data.svct.table.ust,
 						(unsigned char *)res, res_len);
-				} else {
+				else
 					err("Not handled card_type[%d]", card_type);
-				}
 
-				if (dr == FALSE) {
+				if (dr == FALSE)
 					err("SST decoding failed");
-				} else {
+				else
 					tcore_sim_set_service_table(co_sim, svct);
-				}
 
 				/* Free memory */
 				g_free(svct);
@@ -1608,9 +1576,9 @@ static void __on_response_sim_read_data(TcorePending *p,
 			break;
 
 			case SIM_EF_CPHS_OPERATOR_NAME_STRING:
-				dr = tcore_sim_decode_ons((unsigned char*)&file_meta->files.data.cphs_net.full_name,
+				dr = tcore_sim_decode_ons((unsigned char *)&file_meta->files.data.cphs_net.full_name,
 					(unsigned char *)res, res_len);
-				dbg("file_meta->files.result[%d],file_meta->files.data.cphs_net.full_name[%s]",
+				dbg("file_meta->files.result[%d], file_meta->files.data.cphs_net.full_name[%s]",
 					file_meta->files.result, file_meta->files.data.cphs_net.full_name);
 			break;
 
@@ -1630,9 +1598,9 @@ static void __on_response_sim_read_data(TcorePending *p,
 			break;
 
 			case SIM_EF_CPHS_OPERATOR_NAME_SHORT_FORM_STRING:
-				dr = tcore_sim_decode_short_ons((unsigned char*)&file_meta->files.data.cphs_net.short_name,
+				dr = tcore_sim_decode_short_ons((unsigned char *)&file_meta->files.data.cphs_net.short_name,
 					(unsigned char *)res, res_len);
-				dbg("file_meta->files.result[%d],file_meta->files.data.cphs_net.short_name[%s]",
+				dbg("file_meta->files.result[%d], file_meta->files.data.cphs_net.short_name[%s]",
 					file_meta->files.result, file_meta->files.data.cphs_net.short_name);
 			break;
 
@@ -1773,13 +1741,13 @@ static void __on_response_sim_get_response(TcorePending *p,
 
 						switch (file_type_tag) {
 						/* increment to next byte */
-						// ptr_data++;
 						case 0x1:
 							dbg("Getting FileType: [Transparent file type]");
 							file_type = SIM_FILE_TYPE_TRANSPARENT;
 
 							/* increment to next byte */
 							ptr_data++;
+
 							/* increment to next byte */
 							ptr_data++;
 						break;
@@ -1788,14 +1756,18 @@ static void __on_response_sim_get_response(TcorePending *p,
 							dbg("Getting FileType: [Linear fixed file type]");
 							/* increment to next byte */
 							ptr_data++;
+
 							/* data coding byte - value 21 */
 							ptr_data++;
+
 							/* 2bytes */
 							memcpy(&record_len, ptr_data, 2);
+
 							/* swap bytes */
 							SWAP_BYTES_16(record_len);
 							ptr_data = ptr_data + 2;
 							num_of_records = *ptr_data++;
+
 							/* Data lossy conversation from enum (int) to unsigned char */
 							file_type = SIM_FILE_TYPE_LINEAR_FIXED;
 						break;
@@ -1804,10 +1776,13 @@ static void __on_response_sim_get_response(TcorePending *p,
 							dbg("Cyclic fixed file type");
 							/* increment to next byte */
 							ptr_data++;
+
 							/* data coding byte - value 21 */
 							ptr_data++;
+
 							/* 2bytes */
 							memcpy(&record_len, ptr_data, 2);
+
 							/* swap bytes */
 							SWAP_BYTES_16(record_len);
 							ptr_data = ptr_data + 2;
@@ -1826,7 +1801,7 @@ static void __on_response_sim_get_response(TcorePending *p,
 						return;
 					}
 
-					/*File identifier - 0x84,0x85,0x86 etc are currently ignored and not handled */
+					/*File identifier - 0x84, 0x85, 0x86 etc are currently ignored and not handled */
 					if (*ptr_data == 0x83) {
 						/* increment to next byte */
 						ptr_data++;
@@ -1836,7 +1811,7 @@ static void __on_response_sim_get_response(TcorePending *p,
 						memcpy(&file_id, ptr_data, file_id_len);
 						dbg("file_id: %x", file_id);
 
-						/* swap bytes	 */
+						/* swap bytes */
 						SWAP_BYTES_16(file_id);
 						dbg("file_id: %x", file_id);
 
@@ -1867,15 +1842,15 @@ static void __on_response_sim_get_response(TcorePending *p,
 
 					/* life cycle status integer [8A][length:0x01][status]*/
 					/*
-					 status info b8~b1
-					 00000000 : No information given
-					 00000001 : creation state
-					 00000011 : initialization state
-					 000001-1 : operation state -activated
-					 000001-0 : operation state -deactivated
-					 000011-- : Termination state
-					 b8~b5 !=0, b4~b1=X : Proprietary
-					 Any other value : RFU
+					 * status info b8~b1
+					 * 00000000 : No information given
+					 * 00000001 : creation state
+					 * 00000011 : initialization state
+					 * 000001-1 : operation state -activated
+					 * 000001-0 : operation state -deactivated
+					 * 000011-- : Termination state
+					 * b8~b5 !=0, b4~b1=X : Proprietary
+					 * Any other value : RFU
 					 */
 					if (*ptr_data == 0x8A) {
 						/* increment to next byte */
@@ -1921,7 +1896,6 @@ static void __on_response_sim_get_response(TcorePending *p,
 						} else {
 							/* if tag length is not 3 */
 							/* ignoring bytes	*/
-							// ptr_data = ptr_data + 4;
 							dbg("Useless security attributes, so jump to next tag");
 							ptr_data = ptr_data + (*ptr_data + 1);
 						}
@@ -1984,18 +1958,22 @@ static void __on_response_sim_get_response(TcorePending *p,
 				/* ignore RFU byte1 and byte2 */
 				ptr_data++;
 				ptr_data++;
+
 				/* file size */
-				// file_size = p_info->response_len;
 				memcpy(&file_size, ptr_data, 2);
+
 				/* swap bytes */
 				SWAP_BYTES_16(file_size);
+
 				/* parsed file size */
 				ptr_data = ptr_data + 2;
+
 				/* file id */
 				memcpy(&file_id, ptr_data, 2);
 				SWAP_BYTES_16(file_id);
 				dbg("FILE id --> [%x]", file_id);
 				ptr_data = ptr_data + 2;
+
 				/* save file type - transparent, linear fixed or cyclic */
 				file_type_tag = (*(ptr_data + 7));
 
@@ -2008,7 +1986,7 @@ static void __on_response_sim_get_response(TcorePending *p,
 				case 0x1:
 					/* MF file type */
 					dbg("MF file type - not handled - Debug!");
-					break;
+				break;
 
 				case 0x2:
 					/* DF file type */
@@ -2029,24 +2007,32 @@ static void __on_response_sim_get_response(TcorePending *p,
 					} else {
 						/* increment to next byte */
 						ptr_data++;
+
 						/* For a cyclic EF all bits except bit 7 are RFU; b7=1 indicates that */
 						/* the INCREASE command is allowed on the selected cyclic file. */
 						file_type = SIM_FILE_TYPE_CYCLIC;
 					}
+
 					/* bytes 9 to 11 give SIM file access conditions */
 					ptr_data++;
+
 					/* byte 10 has one nibble that is RF U and another for INCREASE which is not used currently */
 					ptr_data++;
+
 					/* byte 11 is invalidate and rehabilate nibbles */
 					ptr_data++;
+
 					/* byte 12 - file status */
 					ptr_data++;
+
 					/* byte 13 - GSM specific data */
 					gsm_specific_file_data_len = *ptr_data;
 					dbg("gsm_specific_file_data_len:[%d]", gsm_specific_file_data_len);
 					ptr_data++;
+
 					/* byte 14 - structure of EF - transparent or linear or cyclic , already saved above */
 					ptr_data++;
+
 					/* byte 15 - length of record for linear and cyclic , for transparent it is set to 0x00. */
 					record_len = *ptr_data;
 					dbg("record length[%d], file size[%d]", record_len, file_size);
@@ -2194,38 +2180,45 @@ static TReturn __sim_get_response(CoreObject *co_sim, UserRequest *ur, sim_meta_
 #if 0	/* To be used later */
 static int __sim_get_lock_type(sim_sec_op_t sec_op)
 {
-	switch(sec_op) {
-		case SIM_CURR_SEC_OP_SIM_DISABLE :
-		case SIM_CURR_SEC_OP_SIM_ENABLE :
-		case SIM_CURR_SEC_OP_SIM_STATUS :
-			return SIM_FACILITY_PS;
-		case SIM_CURR_SEC_OP_PIN1_DISABLE :
-		case SIM_CURR_SEC_OP_PIN1_ENABLE :
-		case SIM_CURR_SEC_OP_PIN1_STATUS :
-			return SIM_FACILITY_SC;
-		case SIM_CURR_SEC_OP_FDN_DISABLE :
-		case SIM_CURR_SEC_OP_FDN_ENABLE :
-		case SIM_CURR_SEC_OP_FDN_STATUS :
-			return SIM_FACILITY_FD;
-		case SIM_CURR_SEC_OP_NET_DISABLE :
-		case SIM_CURR_SEC_OP_NET_ENABLE :
-		case SIM_CURR_SEC_OP_NET_STATUS :
-			return SIM_FACILITY_PN;
-		case SIM_CURR_SEC_OP_NS_DISABLE :
-		case SIM_CURR_SEC_OP_NS_ENABLE :
-		case SIM_CURR_SEC_OP_NS_STATUS :
-			return SIM_FACILITY_PU;
-		case SIM_CURR_SEC_OP_SP_DISABLE :
-		case SIM_CURR_SEC_OP_SP_ENABLE :
-		case SIM_CURR_SEC_OP_SP_STATUS :
-			return SIM_FACILITY_PP;
-		case SIM_CURR_SEC_OP_CP_DISABLE :
-		case SIM_CURR_SEC_OP_CP_ENABLE :
-		case SIM_CURR_SEC_OP_CP_STATUS :
-			return SIM_FACILITY_PC ;
-		default :
-			err("Invalid sec op [%d]", sec_op);
-			return -1;
+	switch (sec_op) {
+	case SIM_CURR_SEC_OP_SIM_DISABLE:
+	case SIM_CURR_SEC_OP_SIM_ENABLE:
+	case SIM_CURR_SEC_OP_SIM_STATUS:
+		return SIM_FACILITY_PS;
+
+	case SIM_CURR_SEC_OP_PIN1_DISABLE:
+	case SIM_CURR_SEC_OP_PIN1_ENABLE:
+	case SIM_CURR_SEC_OP_PIN1_STATUS:
+		return SIM_FACILITY_SC;
+
+	case SIM_CURR_SEC_OP_FDN_DISABLE:
+	case SIM_CURR_SEC_OP_FDN_ENABLE:
+	case SIM_CURR_SEC_OP_FDN_STATUS:
+		return SIM_FACILITY_FD;
+
+	case SIM_CURR_SEC_OP_NET_DISABLE:
+	case SIM_CURR_SEC_OP_NET_ENABLE:
+	case SIM_CURR_SEC_OP_NET_STATUS:
+		return SIM_FACILITY_PN;
+
+	case SIM_CURR_SEC_OP_NS_DISABLE:
+	case SIM_CURR_SEC_OP_NS_ENABLE:
+	case SIM_CURR_SEC_OP_NS_STATUS:
+		return SIM_FACILITY_PU;
+
+	case SIM_CURR_SEC_OP_SP_DISABLE:
+	case SIM_CURR_SEC_OP_SP_ENABLE:
+	case SIM_CURR_SEC_OP_SP_STATUS:
+		return SIM_FACILITY_PP;
+
+	case SIM_CURR_SEC_OP_CP_DISABLE:
+	case SIM_CURR_SEC_OP_CP_ENABLE:
+	case SIM_CURR_SEC_OP_CP_STATUS:
+		return SIM_FACILITY_PC;
+
+	default:
+		err("Invalid sec op [%d]", sec_op);
+		return -1;
 	}
 }
 #endif
@@ -2590,8 +2583,7 @@ static void on_response_sim_get_facility(TcorePending *p, gint data_len,
 			tokens = tcore_at_tok_new(line);
 			if (g_slist_length(tokens) < 1) {
 				err("Invalid message");
-			}
-			else {
+			} else {
 				char *local_data = g_slist_nth_data(tokens, 0);
 				if (local_data != NULL) {
 					get_facility_resp.b_enable = atoi(local_data);
@@ -2600,8 +2592,7 @@ static void on_response_sim_get_facility(TcorePending *p, gint data_len,
 						(get_facility_resp.b_enable ? "Enabled" : "Disabled"));
 
 					get_facility_resp.result = SIM_PIN_OPERATION_SUCCESS;
-				}
-				else {
+				} else {
 					err("Invalid message");
 				}
 			}
@@ -2626,7 +2617,7 @@ static void on_response_sim_get_facility(TcorePending *p, gint data_len,
  * Operation - get_imsi
  *
  * Request -
- * AT-Command: AT+CRSM= <command>[,<fileid>[,<P1>,<P2>,<P3>[,<data>[,<pathid>]]]]
+ * AT-Command: AT+CRSM= <command>[, <fileid>[, <P1>, <P2>, <P3>[, <data>[, <pathid>]]]]
  * where,
  * <command>
  * 176 READ BINARY
@@ -2657,8 +2648,8 @@ static void on_response_sim_get_facility(TcorePending *p, gint data_len,
  * 1 active
  *
  * Success:
- * 	OK
- * 	+CRSM: <sw1>,<sw2>[,<response>]
+ *	OK
+ *	+CRSM: <sw1>, <sw2>[, <response>]
  *
  * <sw1>, <sw2>
  * Integer type containing the SIM information
@@ -2836,7 +2827,7 @@ static TReturn __sim_get_msisdn(CoreObject *co_sim, UserRequest *ur)
  * String type values
  *
  * Success:
- * 	OK
+ *	OK
  *
  * Failure:
  *	+CME ERROR: <error>
@@ -2963,9 +2954,9 @@ static TReturn s_sim_change_pins(CoreObject *co_sim, UserRequest *ur)
  * 1 active
  *
  * Success: when <mode>=2:
- * 	OK
- * 	+CLCK: <status>[,<class1> [<CR><LF>
- * 	+CLCK: <status>,<class2> [...]]
+ *	OK
+ *	+CLCK: <status>[, <class1> [<CR><LF>
+ *	+CLCK: <status>, <class2> [...]]
  *
  * Failure:
  */

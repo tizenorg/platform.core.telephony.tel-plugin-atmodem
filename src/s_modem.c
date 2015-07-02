@@ -53,14 +53,14 @@ static gboolean on_sys_event_modem_power(CoreObject *co_modem, const void *event
 	struct tnoti_modem_power modem_power;
 	enum cp_state *state;
 
-	state = (enum cp_state*)event_info;
+	state = (enum cp_state *)event_info;
 	dbg("state : (0x%x)", *state);
 
-	if ( *state == CP_STATE_OFFLINE || *state == CP_STATE_CRASH_RESET ) {
+	if (*state == CP_STATE_OFFLINE || *state == CP_STATE_CRASH_RESET) {
 
 		tcore_modem_set_powered(co_modem, FALSE);
 
-		if ( *state == CP_STATE_OFFLINE )
+		if (*state == CP_STATE_OFFLINE)
 			modem_power.state = MODEM_STATE_OFFLINE;
 		else
 			modem_power.state = MODEM_STATE_ERROR;
@@ -164,10 +164,10 @@ static void on_response_poweron(TcorePending *p,
 {
 	const struct tcore_at_response *at_resp = data;
 
-	if(at_resp && at_resp->success > 0) {
+	if (at_resp && at_resp->success > 0) {
 		dbg("RESPONSE OK");
 		on_event_modem_power(tcore_pending_ref_core_object(p), NULL, NULL);
-	} else{
+	} else {
 		dbg("RESPONSE NOK");
 		s_modem_send_poweron(tcore_pending_ref_plugin(p));
 	}
@@ -207,7 +207,7 @@ static void on_response_modem_set_flight_mode(TcorePending *p,
 		flight_resp.result = TCORE_RETURN_FAILURE;
 
 	dbg("Setting Modem Flight mode - [%s] - [%s]",
-		((flight_req->enable == 1) ? "ON": "OFF"),
+		((flight_req->enable == 1) ? "ON" : "OFF"),
 		(flight_resp.result == TCORE_RETURN_SUCCESS ? "SUCCESS" : "FAIL"));
 
 	if (ur) {
@@ -226,7 +226,7 @@ static void on_response_modem_set_flight_mode(TcorePending *p,
 
 			flight_mode.enable = flight_req->enable;
 			dbg("Boot-up: Modem Flight mode - [%s]",
-				(flight_req->enable ? "ON": "OFF"));
+				(flight_req->enable ? "ON" : "OFF"));
 
 			/* Send notification */
 			tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(co_modem)),
@@ -234,8 +234,7 @@ static void on_response_modem_set_flight_mode(TcorePending *p,
 				TNOTI_MODEM_FLIGHT_MODE,
 				sizeof(struct tnoti_modem_flight_mode), &flight_mode);
 		}
-	}
-	else {
+	} else {
 		err("ur is NULL");
 	}
 }
@@ -245,7 +244,7 @@ static void on_response_modem_get_imei(TcorePending *p,
 {
 	const struct tcore_at_response *at_resp = data;
 	UserRequest *ur = NULL;
-	struct tresp_modem_get_imei imei_resp= {0, };
+	struct tresp_modem_get_imei imei_resp = {0, };
 
 	dbg("Enter");
 
@@ -294,7 +293,7 @@ static void on_response_modem_get_version(TcorePending *p,
 {
 	const struct tcore_at_response *at_resp = data;
 	UserRequest *ur = NULL;
-	struct tresp_modem_get_version version_resp= {0, };
+	struct tresp_modem_get_version version_resp = {0, };
 
 	dbg("Enter");
 
@@ -369,7 +368,7 @@ static TReturn power_off(CoreObject *co_modem, UserRequest *ur)
 	tcore_modem_set_powered(co_modem, FALSE);
 
 	/* Send notification */
-	tcore_server_send_notification( tcore_plugin_ref_server(tcore_object_ref_plugin(co_modem)),
+	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(co_modem)),
 		co_modem,
 		TNOTI_MODEM_POWER,
 		sizeof(struct tnoti_modem_power), &modem_power);

@@ -39,14 +39,14 @@
 #define ATMODEM_NETWORK_BASE_16	16
 
 typedef enum {
-	ATMDOEM_NETWORK_ACT_GSM,	/* GSM */
-	ATMDOEM_NETWORK_ACT_GSM_COMPACT,	/* GSM Compact */
-	ATMDOEM_NETWORK_ACT_UTRAN,	/* UTRAN */
-	ATMDOEM_NETWORK_ACT_GSM_EGPRS,	/* GSM w/EGPRS */
-	ATMDOEM_NETWORK_ACT_UTRAN_HSDPA,	/* UTRAN w/HSDPA */
-	ATMDOEM_NETWORK_ACT_UTRAN_HSUPA,	/* UTRAN w/HSUPA */
-	ATMDOEM_NETWORK_ACT_UTRAN_HSDPA_HSUPA,	/* UTRAN w/HSDPA and HSUPA */
-	ATMDOEM_NETWORK_ACT_E_UTRAN,	/* E-UTRAN */
+	ATMDOEM_NETWORK_ACT_GSM, /* GSM */
+	ATMDOEM_NETWORK_ACT_GSM_COMPACT, /* GSM Compact */
+	ATMDOEM_NETWORK_ACT_UTRAN, /* UTRAN */
+	ATMDOEM_NETWORK_ACT_GSM_EGPRS, /* GSM w/EGPRS */
+	ATMDOEM_NETWORK_ACT_UTRAN_HSDPA, /* UTRAN w/HSDPA */
+	ATMDOEM_NETWORK_ACT_UTRAN_HSUPA, /* UTRAN w/HSUPA */
+	ATMDOEM_NETWORK_ACT_UTRAN_HSDPA_HSUPA, /* UTRAN w/HSDPA and HSUPA */
+	ATMDOEM_NETWORK_ACT_E_UTRAN, /* E-UTRAN */
 } AtmodemNetworkAct;
 
 #define AT_CREG_STAT_NOT_REG		0 /* not registered, MT is not currently searching a new operator to register to */
@@ -129,11 +129,15 @@ static void _insert_mcc_mnc_oper_list(TcorePlugin *p, CoreObject *co_network)
 	g_hash_table_iter_init(&iter, result);
 	while (g_hash_table_iter_next(&iter, &key, &value) == TRUE) {
 		row = value;
-		noi = calloc(sizeof(struct tcore_network_operator_info), 1);
-		snprintf(noi->mcc, 4, "%s",(const gchar *)(g_hash_table_lookup(row, "1")));
-		snprintf(noi->mnc, 4, "%s",(const gchar *)(g_hash_table_lookup(row, "2")));
-		snprintf(noi->name, 41, "%s",(const gchar *)(g_hash_table_lookup(row, "3")));
-		snprintf(noi->country, 4, "%s",(const gchar *)(g_hash_table_lookup(row, "0")));
+		noi = g_try_malloc0(sizeof(struct tcore_network_operator_info));
+		if (noi == NULL) {
+			err("Memory allocation failed!!");
+			continue;
+		}
+		snprintf(noi->mcc, 4, "%s", (const char *)(g_hash_table_lookup(row, "1")));
+		snprintf(noi->mnc, 4, "%s", (const char *)(g_hash_table_lookup(row, "2")));
+		snprintf(noi->name, 41, "%s", (const char *)(g_hash_table_lookup(row, "3")));
+		snprintf(noi->country, 4, "%s", (const char *)(g_hash_table_lookup(row, "0")));
 
 		tcore_network_operator_info_add(co_network, noi);
 		g_free(noi);
@@ -170,70 +174,72 @@ static enum telephony_network_service_domain_status __atmodem_network_map_stat(g
 }
 
 static enum telephony_network_service_type _get_service_type(enum telephony_network_service_type prev_type,
-											int act, int cs_status, int ps_status)
+	int act, int cs_status, int ps_status)
 {
 	enum telephony_network_service_type ret;
 
 	ret = prev_type;
 
 	switch (act) {
-		case NETWORK_ACT_NOT_SPECIFIED:
-			ret = NETWORK_SERVICE_TYPE_UNKNOWN;
-			break;
+	case NETWORK_ACT_NOT_SPECIFIED:
+		ret = NETWORK_SERVICE_TYPE_UNKNOWN;
+	break;
 
-		case NETWORK_ACT_GSM:
-			if (prev_type == NETWORK_SERVICE_TYPE_2_5G_EDGE)
-				ret = NETWORK_SERVICE_TYPE_2_5G_EDGE;
-			else
-				ret = NETWORK_SERVICE_TYPE_2G;
-			break;
-
-		case NETWORK_ACT_IS95A:
-		case NETWORK_ACT_IS95B:
+	case NETWORK_ACT_GSM:
+		if (prev_type == NETWORK_SERVICE_TYPE_2_5G_EDGE)
+			ret = NETWORK_SERVICE_TYPE_2_5G_EDGE;
+		else
 			ret = NETWORK_SERVICE_TYPE_2G;
-			break;
+	break;
 
-		case NETWORK_ACT_CDMA_1X:
-		case NETWORK_ACT_GPRS:
-			ret = NETWORK_SERVICE_TYPE_2_5G;
-			break;
+	case NETWORK_ACT_IS95A:
+	case NETWORK_ACT_IS95B:
+		ret = NETWORK_SERVICE_TYPE_2G;
+	break;
 
-		case NETWORK_ACT_EGPRS:
-			return NETWORK_SERVICE_TYPE_2_5G_EDGE;
-			break;
+	case NETWORK_ACT_CDMA_1X:
+	case NETWORK_ACT_GPRS:
+		ret = NETWORK_SERVICE_TYPE_2_5G;
+	break;
 
-		case NETWORK_ACT_UMTS:
-			ret = NETWORK_SERVICE_TYPE_3G;
-			break;
+	case NETWORK_ACT_EGPRS:
+		return NETWORK_SERVICE_TYPE_2_5G_EDGE;
 
-		case NETWORK_ACT_EVDO_REV0:
-		case NETWORK_ACT_CDMA_1X_EVDO_REV0:
-		case NETWORK_ACT_EVDO_REVA:
-		case NETWORK_ACT_CDMA_1X_EVDO_REVA:
-		case NETWORK_ACT_EVDV:
-			ret = NETWORK_SERVICE_TYPE_3G;
-			break;
-		default :
-			/*Do Nothing*/
-			dbg ("Default Case executed.");
+	case NETWORK_ACT_UMTS:
+		ret = NETWORK_SERVICE_TYPE_3G;
+	break;
+
+	case NETWORK_ACT_EVDO_REV0:
+	case NETWORK_ACT_CDMA_1X_EVDO_REV0:
+	case NETWORK_ACT_EVDO_REVA:
+	case NETWORK_ACT_CDMA_1X_EVDO_REVA:
+	case NETWORK_ACT_EVDV:
+		ret = NETWORK_SERVICE_TYPE_3G;
+	break;
+
+	default:
+		/*Do Nothing*/
+		dbg("Default Case executed.");
+	break;
 	}
 
-	if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_NO && ps_status == NETWORK_SERVICE_DOMAIN_STATUS_NO) {
+	if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_NO
+			&& ps_status == NETWORK_SERVICE_DOMAIN_STATUS_NO) {
 		ret = NETWORK_SERVICE_TYPE_NO_SERVICE;
-	}
-	else if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_SEARCH || ps_status == NETWORK_SERVICE_DOMAIN_STATUS_SEARCH) {
-		if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL || ps_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL) {
+	} else if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_SEARCH
+			|| ps_status == NETWORK_SERVICE_DOMAIN_STATUS_SEARCH) {
+		if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL
+				|| ps_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL) {
 			/* no change */
-		}
-		else {
+		} else {
 			ret = NETWORK_SERVICE_TYPE_SEARCH;
 		}
-	}
-	else if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_EMERGENCY || ps_status == NETWORK_SERVICE_DOMAIN_STATUS_EMERGENCY) {
-		if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL || ps_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL) {
+	} else if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_EMERGENCY
+			|| ps_status == NETWORK_SERVICE_DOMAIN_STATUS_EMERGENCY) {
+		if (cs_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL
+				|| ps_status == NETWORK_SERVICE_DOMAIN_STATUS_FULL) {
 			/* no change */
-		}
-		else {
+		} else {
 			ret = NETWORK_SERVICE_TYPE_EMERGENCY;
 		}
 	}
@@ -257,7 +263,7 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 		return TRUE;
 	}
 
-	line = (gchar *) (lines->data);
+	line = (char *) (lines->data);
 	if (line != NULL) {
 		struct tnoti_network_registration_status registration_status = {0, };
 		struct tnoti_network_location_cellinfo cell_info = {0, };
@@ -268,7 +274,7 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 		/*
 		 * Tokenize
 		 *
-		 * +CREG: <stat>[,<lac>,<ci>[,<AcT>]]
+		 * +CREG: <stat>[, <lac>, <ci>[, <AcT>]]
 		 */
 		tokens = tcore_at_tok_new(line);
 		if (g_slist_length(tokens) < 1) {
@@ -286,14 +292,16 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 
 		/* <lac> */
 		if ((token_str = g_slist_nth_data(tokens, 1))) {
-			token_str = tcore_at_tok_extract((const gchar *)token_str);
+			token_str = tcore_at_tok_extract((const char *)token_str);
+			if (token_str != NULL) {
+				lac = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
 
-			lac = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
-
-			/* Update Location Area Code (lac) information */
-			(void)tcore_network_set_lac(co_network, lac);
-
-			g_free(token_str);
+				/* Update Location Area Code (lac) information */
+				(void)tcore_network_set_lac(co_network, lac);
+				g_free(token_str);
+			} else {
+				err("No <lac>");
+			}
 		} else {
 			dbg("No <lac> in +CREG");
 			(void)tcore_network_get_lac(co_network, &lac);
@@ -301,14 +309,15 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 
 		/* <ci> */
 		if ((token_str = g_slist_nth_data(tokens, 2))) {
-			token_str = tcore_at_tok_extract((const gchar *)token_str);
-
-			ci = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
-
-			/* Update Cell ID (ci) information */
-			(void)tcore_network_set_cell_id(co_network, ci);
-
-			g_free(token_str);
+			token_str = tcore_at_tok_extract((const char *)token_str);
+			if (token_str != NULL) {
+				ci = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
+				/* Update Cell ID (ci) information */
+				(void)tcore_network_set_cell_id(co_network, ci);
+				g_free(token_str);
+			} else {
+				err("No <ci>");
+			}
 		} else {
 			dbg("No <ci> in +CREG");
 			(void)tcore_network_get_cell_id(co_network, &ci);
@@ -327,7 +336,8 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 		/* Send Notification - Network (CS) Registration status */
 		registration_status.cs_domain_status = stat;
 
-		tcore_network_get_service_status(co_network, TCORE_NETWORK_SERVICE_DOMAIN_TYPE_PACKET, &registration_status.ps_domain_status);
+		tcore_network_get_service_status(co_network,
+			TCORE_NETWORK_SERVICE_DOMAIN_TYPE_PACKET, &registration_status.ps_domain_status);
 
 		tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(co_network)),
 			co_network,
@@ -336,15 +346,16 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 
 #if 0 /* TODO : Implement Roaming State */
 		switch (stat) {
-			case TEL_NETWORK_REG_STATUS_ROAMING:
-				roam_state = TRUE; // no break
-			case TEL_NETWORK_REG_STATUS_REGISTERED:
-				 Fetch Network name - Internal request
-				(void)__atmodem_network_fetch_nw_name(co_network,
-					__on_response_atmodem_network_fetch_nw_name_internal, NULL);
-				break;
-			default:
-				break;
+		case TEL_NETWORK_REG_STATUS_ROAMING:
+			roam_state = TRUE; /* no break */
+		case TEL_NETWORK_REG_STATUS_REGISTERED:
+			 Fetch Network name - Internal request
+			(void)__atmodem_network_fetch_nw_name(co_network,
+				__on_response_atmodem_network_fetch_nw_name_internal, NULL);
+		break;
+
+		default:
+		break;
 		}
 
 		tcore_network_set_roaming_state(co_network, roam_state);
@@ -382,7 +393,7 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 		return TRUE;
 	}
 
-	line = (gchar *) (lines->data);
+	line = (char *) (lines->data);
 	if (line != NULL) {
 		struct tnoti_network_registration_status registration_status = {0, };
 		struct tnoti_network_location_cellinfo cell_info = {0, };
@@ -396,7 +407,7 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 		/*
 		 * Tokenize
 		 *
-		 * +CGREG: <stat>[,<lac>,<ci>[,<AcT>,<rac>]]
+		 * +CGREG: <stat>[, <lac>, <ci>[, <AcT>, <rac>]]
 		 */
 		tokens = tcore_at_tok_new(line);
 		if (g_slist_length(tokens) < 1) {
@@ -414,14 +425,15 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 
 		/* <lac> */
 		if ((token_str = g_slist_nth_data(tokens, 1))) {
-			token_str = tcore_at_tok_extract((const gchar *)token_str);
-
-			lac = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
-
-			/* Update Location Area Code (lac) information */
-			(void)tcore_network_set_lac(co_network, lac);
-
-			g_free(token_str);
+			token_str = tcore_at_tok_extract((const char *)token_str);
+			if (token_str != NULL) {
+				lac = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
+				/* Update Location Area Code (lac) information */
+				(void)tcore_network_set_lac(co_network, lac);
+				g_free(token_str);
+			} else {
+				err("No <lac>");
+			}
 		} else {
 			dbg("No <lac> in +CGREG");
 			(void)tcore_network_get_lac(co_network, &lac);
@@ -429,14 +441,15 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 
 		/* <ci> */
 		if ((token_str = g_slist_nth_data(tokens, 2))) {
-			token_str = tcore_at_tok_extract((const gchar *)token_str);
-
-			ci = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
-
-			/* Update Cell ID (ci) information */
-			(void)tcore_network_set_cell_id(co_network, ci);
-
-			g_free(token_str);
+			token_str = tcore_at_tok_extract((const char *)token_str);
+			if (token_str != NULL) {
+				ci = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
+				/* Update Cell ID (ci) information */
+				(void)tcore_network_set_cell_id(co_network, ci);
+				g_free(token_str);
+			} else {
+				err("No <ci>");
+			}
 		} else {
 			dbg("No <ci> in +CGREG");
 			(void)tcore_network_get_cell_id(co_network, &ci);
@@ -453,16 +466,17 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 
 		/* <rac> */
 		if ((token_str = g_slist_nth_data(tokens, 4))) {
-			token_str = tcore_at_tok_extract((const gchar *)token_str);
-
-			rac = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
-
-			/* Update Routing Area Code (rac) information */
-			(void)tcore_network_set_rac(co_network, rac);
-
-			g_free(token_str);
+			token_str = tcore_at_tok_extract((const char *)token_str);
+			if (token_str != NULL) {
+				rac = (guint)strtol(token_str, NULL, ATMODEM_NETWORK_BASE_16);
+				/* Update Routing Area Code (rac) information */
+				(void)tcore_network_set_rac(co_network, rac);
+				g_free(token_str);
+			} else {
+				err("No <rac>");
+			}
 		} else {
-			err("No <ci> in +CGREG");
+			err("No <rac> in +CGREG");
 			(void)tcore_network_get_rac(co_network, &rac);
 		}
 		dbg("<stat>: %d <lac>: 0x%x <ci>: 0x%x <AcT>: %d <rac>: 0x%x", ps_status, lac, ci, act, rac);
@@ -526,12 +540,12 @@ static gboolean on_notification_atmodem_network_rssi(CoreObject *co_network,
 		return TRUE;
 	}
 
-	line = (const gchar *)lines->data;
+	line = (const char *)lines->data;
 	if (line != NULL) {
 		GSList *tokens;
 		guint descriptor;
 		guint value;
-		static struct tnoti_network_icon_info net_icon_info = {0xff,0,0,0};
+		static struct tnoti_network_icon_info net_icon_info = {0xff, 0, 0, 0};
 
 		tokens = tcore_at_tok_new(line);
 
@@ -577,11 +591,10 @@ static void __on_response_atmodem_network_registration(TcorePending *p,
 	const struct tcore_at_response *at_resp = data;
 	dbg("Entry");
 
-	if (at_resp && at_resp->success) {
+	if (at_resp && at_resp->success)
 		dbg("Network Registration - [OK]");
-	} else {
+	else
 		err("Network Registration - [NOK]");
-	}
 }
 
 static void __atmodem_network_register_to_network(CoreObject *co_network)
@@ -605,6 +618,8 @@ static void on_sim_resp_hook_get_netname(UserRequest *ur, enum tcore_response_co
 	const struct tresp_sim_read *resp = data;
 	CoreObject *o = user_data;
 	struct tnoti_network_registration_status regist_status;
+	struct tnoti_network_identity network_identity;
+	gchar *plmn = NULL;
 
 	if (command == TRESP_SIM_GET_SPN) {
 		dbg("OK SPN GETTING!!");
@@ -621,15 +636,14 @@ static void on_sim_resp_hook_get_netname(UserRequest *ur, enum tcore_response_co
 		 *  bit[1]: 0 = display of the service provider name is required when registered PLMN is neither HPLMN nor a PLMN in the service provider PLMN list
 		 *          1 = display of the service provider name is not required when registered PLMN is neither HPLMN nor a PLMN in the service provider PLMN list
 		 */
-		if (resp->data.spn.display_condition & 0x01) {
+		if (resp->data.spn.display_condition & 0x01)
 			tcore_network_set_network_name_priority(o, TCORE_NETWORK_NAME_PRIORITY_NETWORK);
-		}
-		if ((resp->data.spn.display_condition & 0x02) == 0) {
+
+		if ((resp->data.spn.display_condition & 0x02) == 0)
 			tcore_network_set_network_name_priority(o, TCORE_NETWORK_NAME_PRIORITY_SPN);
-		}
-		if ((resp->data.spn.display_condition & 0x03) == 0x01) {
+
+		if ((resp->data.spn.display_condition & 0x03) == 0x01)
 			tcore_network_set_network_name_priority(o, TCORE_NETWORK_NAME_PRIORITY_ANY);
-		}
 	}
 
 	tcore_network_get_service_status(o, TCORE_NETWORK_SERVICE_DOMAIN_TYPE_CIRCUIT, &regist_status.cs_domain_status);
@@ -639,6 +653,22 @@ static void on_sim_resp_hook_get_netname(UserRequest *ur, enum tcore_response_co
 
 	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)), o,
 			TNOTI_NETWORK_REGISTRATION_STATUS, sizeof(struct tnoti_network_registration_status), &regist_status);
+
+	memset(&network_identity, 0x00, sizeof(struct tnoti_network_identity));
+
+	plmn = tcore_network_get_plmn(o);
+	if (plmn) {
+		dbg("plmn = %s", plmn);
+		g_strlcpy(network_identity.plmn, plmn, sizeof(network_identity.plmn));
+		g_free(plmn);
+	}
+	g_strlcpy(network_identity.short_name, "SDK", sizeof(network_identity.short_name));
+	g_strlcpy(network_identity.full_name, "SDK", sizeof(network_identity.full_name));
+
+	tcore_server_send_notification(tcore_plugin_ref_server(tcore_object_ref_plugin(o)),
+								o,
+								TNOTI_NETWORK_IDENTITY,
+								sizeof(struct tnoti_network_identity), &network_identity);
 }
 
 /* Hooks */
@@ -712,8 +742,8 @@ static void on_response_network_search(TcorePending *p,
 			/* Status */
 			resp = tcore_at_tok_nth(net_token, 0);
 			if (resp != NULL) {
-				nw_resp.list [count].status = atoi(resp);
-				dbg("Status: [%d]", nw_resp.list [count].status);
+				nw_resp.list[count].status = atoi(resp);
+				dbg("Status: [%d]", nw_resp.list[count].status);
 			}
 
 			/* Name */
@@ -764,19 +794,19 @@ static void on_response_network_search(TcorePending *p,
 
 			dbg("[%d] Status: [%d] name: [%s] PLMN: [%s] AcT: [%d]",
 					count,
-					nw_resp.list [count].status,
-					nw_resp.list [count].name,
-					nw_resp.list [count].plmn,
-					nw_resp.list [count].act);
+					nw_resp.list[count].status,
+					nw_resp.list[count].name,
+					nw_resp.list[count].plmn,
+					nw_resp.list[count].act);
 
 			tcore_at_tok_free(net_token);
 		}
 
 		nw_resp.result = TCORE_RETURN_SUCCESS;
-	}
-	else {
+	} else {
 		err("RESPONSE NOK");
-		err("CME Error[%s]",(char *)(at_resp->lines ? at_resp->lines->data : "Unknown"));
+		if (at_resp)
+			err("CME Error[%s]", (char *)(at_resp->lines ? at_resp->lines->data : "Unknown"));
 	}
 
 	ur = tcore_pending_ref_user_request(p);
@@ -784,8 +814,7 @@ static void on_response_network_search(TcorePending *p,
 		tcore_user_request_send_response(ur,
 			TRESP_NETWORK_SEARCH,
 			sizeof(struct tresp_network_search), &nw_resp);
-	}
-	else {
+	} else {
 		err("ur is NULL");
 	}
 
@@ -806,7 +835,7 @@ static void on_response_network_get_plmn_selection_mode(TcorePending *p,
 
 	dbg("Enter");
 
-	nw_resp.result = TCORE_RETURN_FAILURE; //TODO - CME Error mapping required.
+	nw_resp.result = TCORE_RETURN_FAILURE; /* TODO - CME Error mapping required. */
 
 	if (at_resp && at_resp->success) {
 		const gchar *line;
@@ -870,7 +899,7 @@ static void on_response_network_set_plmn_selection_mode(TcorePending *p,
 		} else {
 			err("RESPONSE NOK");
 			if (at_resp->lines)
-				err("CME Error[%s]",(char *)at_resp->lines->data);
+				err("CME Error[%s]", (char *)at_resp->lines->data);
 				nw_resp.result = TCORE_RETURN_FAILURE;
 		}
 	} else {
@@ -918,18 +947,18 @@ static void on_response_network_get_serving_network(TcorePending *p,
 		num_lines = g_slist_length(at_resp->lines);
 		dbg("number of lines: %d", num_lines);
 
-		for(count = 0; count < num_lines; count++) {
+		for (count = 0; count < num_lines; count++) {
 			line = g_slist_nth_data(at_resp->lines, count);
 			tokens = tcore_at_tok_new(line);
-			// mode
-			if ((local_data = tcore_at_tok_nth(tokens, 0))) {
+			/* mode */
+			if ((local_data = tcore_at_tok_nth(tokens, 0)))
 				dbg("mode  : %s", local_data);
-			}
-			// format
-			if ((local_data = tcore_at_tok_nth(tokens, 1))) {
+
+			/* format */
+			if ((local_data = tcore_at_tok_nth(tokens, 1)))
 				dbg("format  : %s", local_data);
-			}
-			//plmn
+
+			/*plmn */
 			if ((plmn = tcore_at_tok_nth(tokens, 2))) {
 				dbg("plmn  : %s", plmn);
 				g_strlcpy(nw_resp.plmn, plmn, 6);
@@ -939,7 +968,8 @@ static void on_response_network_get_serving_network(TcorePending *p,
 					tcore_network_set_network_name(co_network, TCORE_NETWORK_NAME_TYPE_FULL, "SDK");
 				}
 			}
-			//act
+
+			/* act */
 			if ((local_data = tcore_at_tok_nth(tokens, 3))) {
 				dbg("AcT  : %s", local_data);
 				act = lookup_tbl_access_technology[atoi(local_data)];
@@ -1008,7 +1038,7 @@ static TReturn set_plmn_selection_mode(CoreObject *co_network, UserRequest *ur)
 
 	dbg("Entry");
 
-	mode_info = (struct treq_network_set_plmn_selection_mode*)tcore_user_request_ref_data( ur, 0 );
+	mode_info = (struct treq_network_set_plmn_selection_mode *)tcore_user_request_ref_data(ur, 0);
 
 	if (mode_info->mode == NETWORK_SELECT_MODE_AUTOMATIC) {
 		at_cmd = g_strdup_printf("AT+COPS=0");
@@ -1022,15 +1052,17 @@ static TReturn set_plmn_selection_mode(CoreObject *co_network, UserRequest *ur)
 		case NETWORK_ACT_EGPRS:
 			act = 0;
 		break;
+
 		case NETWORK_ACT_UMTS:
 		case NETWORK_ACT_GSM_UTRAN:
 			act = 2;
 		break;
+
 		default:
 			err("Unsupported AcT: [%d]", mode_info->act);
 			return ret;
 		}
-		at_cmd = g_strdup_printf("AT+COPS=1,2,\"%s\",%d", mode_info->plmn, act);
+		at_cmd = g_strdup_printf("AT+COPS=1, 2, \"%s\", %d", mode_info->plmn, act);
 	}
 
 	/* Send Request to modem */
@@ -1083,6 +1115,61 @@ static TReturn get_serving_network(CoreObject *co_network, UserRequest *ur)
 	return ret;
 }
 
+static TReturn get_default_subscription(CoreObject *co, UserRequest *ur)
+{
+	struct tresp_network_get_default_subs resp_data = {0, };
+	TReturn ret = TCORE_RETURN_FAILURE;
+	Server *server;
+	Storage *strg = NULL;
+	TcorePlugin *plugin = tcore_object_ref_plugin(co);
+
+	dbg("Enter");
+
+	server = tcore_plugin_ref_server(plugin);
+	strg = tcore_server_find_storage(server, "vconf");
+
+	/* VCONFKEY is aligned to req_data->current_network type */
+	resp_data.default_subs = tcore_storage_get_int(strg,
+			STORAGE_KEY_TELEPHONY_DUALSIM_DEFAULT_SERVICE_INT);
+
+	resp_data.result = TCORE_RETURN_SUCCESS;
+
+	/* Send Response */
+	ret = tcore_user_request_send_response(ur,
+		TRESP_NETWORK_GET_DEFAULT_SUBSCRIPTION,
+		sizeof(struct tresp_network_get_default_subs), &resp_data);
+
+	dbg("ret: [0x%x]", ret);
+	return ret;
+}
+
+static TReturn get_default_data_subscription(CoreObject *co, UserRequest *ur)
+{
+	struct tresp_network_get_default_data_subs resp = {0, };
+	Server *server;
+	Storage *strg = NULL;
+	TcorePlugin *plugin = tcore_object_ref_plugin(co);
+	TReturn ret;
+
+	dbg("Enter");
+
+	server = tcore_plugin_ref_server(plugin);
+	strg = tcore_server_find_storage(server, "vconf");
+
+	resp.default_subs = tcore_storage_get_int(strg, STORAGE_KEY_TELEPHONY_DUALSIM_DEFAULT_DATA_SERVICE_INT);
+	dbg("Defualt data Subscription: [%d]", resp.default_subs);
+
+	resp.result = TCORE_RETURN_SUCCESS;
+
+	ret = tcore_user_request_send_response(ur,
+		TRESP_NETWORK_GET_DEFAULT_DATA_SUBSCRIPTION,
+		sizeof(struct tresp_network_get_default_data_subs), &resp);
+	if (TCORE_RETURN_SUCCESS ==  ret)
+		tcore_user_request_unref(ur);
+
+	return ret;
+}
+
 /** Network operations */
 static struct tcore_network_operations network_ops = {
 	.search = search_network,
@@ -1100,6 +1187,8 @@ static struct tcore_network_operations network_ops = {
 	.get_power_on_attach = NULL,
 	.set_cancel_manual_search = NULL,
 	.get_serving_network = get_serving_network,
+	.get_default_subscription = get_default_subscription,
+	.get_default_data_subscription = get_default_data_subscription,
 };
 
 gboolean s_network_init(TcorePlugin *p, TcoreHal *h)

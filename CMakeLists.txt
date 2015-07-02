@@ -49,5 +49,4 @@ SET_TARGET_PROPERTIES(atmodem-plugin PROPERTIES PREFIX "" OUTPUT_NAME atmodem-pl
 INSTALL(TARGETS atmodem-plugin
 		LIBRARY DESTINATION ${LIBDIR}/telephony/plugins/modems)
 
-INSTALL(FILES ${CMAKE_SOURCE_DIR}/res/wiki_mcc_mnc_oper_list.sql DESTINATION /tmp RENAME mcc_mnc_oper_list.sql)
 INSTALL(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION /usr/share/license RENAME tel-plugin-atmodem)

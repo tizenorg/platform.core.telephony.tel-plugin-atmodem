@@ -185,7 +185,7 @@ static void __on_response_get_ipconfiguration(TcorePending *p,
 						dbg("IP address: %s", ip);
 					}
 
-					(void)tcore_context_set_address(ps_context, (const char*)pdp_address);
+					(void)tcore_context_set_address(ps_context, (const char *)pdp_address);
 					g_free(pdp_address);
 
 					dbg("Adding default DNS pri: 8.8.8.8 sec: 8.8.4.4");
@@ -204,7 +204,7 @@ static void __on_response_get_ipconfiguration(TcorePending *p,
 				}
 			}
 		}
-	}else {
+	} else {
 		err("Response NOK");
 
 		context_id = tcore_context_get_id(ps_context);
@@ -229,7 +229,7 @@ static void __get_ipconfiguration(CoreObject *co_ps, CoreObject *ps_context)
 		ps_context,
 		on_send_at_request, NULL,
 		0, NULL, NULL);
-	if (ret != TCORE_RETURN_SUCCESS){
+	if (ret != TCORE_RETURN_SUCCESS) {
 		err("Failed to prepare and send AT request");
 
 		/* Deactivate PDP context */
@@ -279,7 +279,7 @@ static void __attach_ps(CoreObject *co_ps, CoreObject *ps_context)
 		__on_response_attach_ps, ps_context,
 		on_send_at_request, NULL,
 		0, NULL, NULL);
-	if (ret != TCORE_RETURN_SUCCESS){
+	if (ret != TCORE_RETURN_SUCCESS) {
 		err("Failed to prepare and send AT request");
 
 		/* Deactivate PDP context */
@@ -378,8 +378,8 @@ static void on_response_ps_define_context(TcorePending *p,
 		dbg("Response OK");
 		curr_call_status = 0;
 		tcore_context_set_state(co_ps, CONTEXT_STATE_ACTIVATED);
-	}else {
-		err("ERROR[%s]",at_resp->final_response);
+	} else {
+		err("ERROR[%s]", at_resp->final_response);
 		curr_call_status = 3;
 	}
 
@@ -432,7 +432,7 @@ static TReturn activate_ps_context(CoreObject *o, CoreObject *ps_context, void* 
 		on_response_ps_activate_context, ps_context,
 		on_send_at_request, NULL,
 		0, NULL, NULL);
-	if (ret != TCORE_RETURN_SUCCESS){
+	if (ret != TCORE_RETURN_SUCCESS) {
 		err("AT request failed. Send notification for call status [DISCONNECTED]");
 
 		__notify_context_status_changed(o, context_id, 3);
@@ -486,7 +486,7 @@ static TReturn deactivate_ps_context(CoreObject *o, CoreObject *ps_context, void
 		on_response_ps_deactivate_context, ps_context,
 		on_send_at_request, NULL,
 		0, NULL, NULL);
-	if (ret != TCORE_RETURN_SUCCESS){
+	if (ret != TCORE_RETURN_SUCCESS) {
 		err("AT request failed. Send notification for call status [DISCONNECTED]");
 		__notify_context_status_changed(o, context_id, 3);
 	}

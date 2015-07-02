@@ -32,6 +32,8 @@
 #undef	MAX
 #define	MAX(a, b)	(((a) > (b)) ? (a) : (b))
 
+#define TAB_SPACE	"  "
+
 #define	bitsize(type) (sizeof(type) * 8)
 
 #define	copymask(type) ((0xffffffff) >> (32 - bitsize(type)))
@@ -66,7 +68,7 @@ char _util_unpackb(const char *src, int pos, int len)
 		src++;
 		len -= 8 - pos;
 
-		if (len > 0) result = (result << len) | (*src >> (8 - len));   // if any bits left
+		if (len > 0) result = (result << len) | (*src >> (8 - len));   /* if any bits left */
 	}
 
 	return result;
@@ -76,13 +78,12 @@ char _util_convert_byte_hexChar(char val)
 {
 	char hex_char;
 
-	if (val <= 9) {
+	if (val <= 9)
 		hex_char = (char) (val + '0');
-	} else if (val >= 10 && val <= 15) {
+	else if (val >= 10 && val <= 15)
 		hex_char = (char) (val - 10 + 'A');
-	} else {
+	else
 		hex_char = '0';
-}
 
 	return (hex_char);
 }
@@ -93,7 +94,7 @@ gboolean util_byte_to_hex(const char *byte_pdu, char *hex_pdu, int num_bytes)
 	char nibble;
 	int buf_pos = 0;
 
-        for (i = 0; i < num_bytes * 2; i++) {
+	for (i = 0; i < num_bytes * 2; i++) {
 		nibble = _util_unpackb(byte_pdu, buf_pos, 4);
 		buf_pos += 4;
 		hex_pdu[i] = _util_convert_byte_hexChar(nibble);
@@ -117,18 +118,17 @@ void util_hex_dump(char *pad, int size, const void *data)
 	p = (unsigned const char *)data;
 
 	snprintf(buf, 255, "%s%04X: ", pad, 0);
-	for (i = 0; i<size; i++) {
+	for (i = 0; i < size; i++) {
 		snprintf(hex, 4, "%02X ", p[i]);
-		strcat(buf, hex);
+		strncat(buf, hex, strlen(hex));
 
 		if ((i + 1) % 8 == 0) {
 			if ((i + 1) % 16 == 0) {
 				msg("%s", buf);
 				memset(buf, 0, 255);
 				snprintf(buf, 255, "%s%04X: ", pad, i + 1);
-			}
-			else {
-				strcat(buf, "  ");
+			} else {
+				strncat(buf, TAB_SPACE, strlen(TAB_SPACE));
 			}
 		}
 	}
@@ -169,12 +169,10 @@ unsigned int util_assign_message_sequence_id(TcorePlugin *p)
 	if (gd->msg_auto_id_current == 0) {
 		gd->msg_auto_id_current = gd->msg_auto_id_start;
 		dbg("pending_auto_id_current is 0, reset to start");
-	}
-	else if (gd->msg_auto_id_current >= gd->msg_auto_id_end) {
+	} else if (gd->msg_auto_id_current >= gd->msg_auto_id_end) {
 		gd->msg_auto_id_current = gd->msg_auto_id_start;
 		dbg("pending_auto_id_current is over, reset to start");
-	}
-	else {
+	} else {
 		gd->msg_auto_id_current++;
 	}
 
@@ -240,22 +238,21 @@ UserRequest *util_pop_waiting_job(GQueue *queue, unsigned int id)
 
 unsigned char util_hexCharToInt(char c)
 {
-    if (c >= '0' && c <= '9')
-        return (c - '0');
-    else if (c >= 'A' && c <= 'F')
-        return (c - 'A' + 10);
-    else if (c >= 'a' && c <= 'f')
-        return (c - 'a' + 10);
-    else
-    {
-        dbg("invalid charater!!");
-        return -1;
-    }
+	if (c >= '0' && c <= '9') {
+		return (c - '0');
+	} else if (c >= 'A' && c <= 'F') {
+		return (c - 'A' + 10);
+	} else if (c >= 'a' && c <= 'f') {
+		return (c - 'a' + 10);
+	} else {
+		dbg("invalid charater!!");
+		return -1;
+	}
 }
 
-char * util_hexStringToBytes(char * s)
+char *util_hexStringToBytes(char *s)
 {
-    char * ret;
+	char *ret;
 	int i;
 	int sz;
 
@@ -264,12 +261,16 @@ char * util_hexStringToBytes(char * s)
 
 	sz = strlen(s);
 
-	ret = calloc((sz/2)+1, 1);
+	ret = g_try_malloc0((sz / 2) + 1);
+	if (ret == NULL) {
+		err("Memory allocation failed!!");
+		return NULL;
+	}
 
 	dbg("Convert String to Binary!!");
 
 	for (i = 0; i < sz; i += 2) {
-		ret[i / 2] = (char) ((util_hexCharToInt(s[i]) << 4) | util_hexCharToInt(s[i + 1]));
+		ret[i / 2] = (char)((util_hexCharToInt(s[i]) << 4) | util_hexCharToInt(s[i + 1]));
 		dbg("[%02x]", ret[i/2]);
 	}
 
@@ -279,7 +280,6 @@ char * util_hexStringToBytes(char * s)
 void on_send_at_request(TcorePending *p,
 	gboolean send_status, void *user_data)
 {
-	dbg("Send - [%s]",
-		(send_status == TRUE ? "OK" : "NOK"));
+	dbg("Send - [%s]", (send_status == TRUE ? "OK" : "NOK"));
 }
 
