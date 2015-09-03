@@ -67,14 +67,6 @@
 }
 
 typedef enum {
-	SIM_FILE_TYPE_DEDICATED = 0x00, /**< Dedicated */
-	SIM_FILE_TYPE_TRANSPARENT = 0x01, /**< Transparent -binary type*/
-	SIM_FILE_TYPE_LINEAR_FIXED = 0x02, /**< Linear fixed - record type*/
-	SIM_FILE_TYPE_CYCLIC = 0x04, /**< Cyclic - record type*/
-	SIM_FILE_TYPE_INVALID_TYPE = 0xFF /**< Invalid type */
-} sim_file_type_t;
-
-typedef enum {
 	SIM_CURR_SEC_OP_PIN1_VERIFY,
 	SIM_CURR_SEC_OP_PIN2_VERIFY,
 	SIM_CURR_SEC_OP_PUK1_VERIFY,
@@ -160,7 +152,7 @@ typedef struct {
 	guint rec_count; /**< Number of records in file */
 	guint data_size; /**< File size */
 	guint current_index; /**< Current index to read */
-	sim_file_type_t file_type; /**< File type and structure */
+	enum tcore_sim_file_type_e file_type; /**< File type and structure */
 	struct tel_sim_mbi_list mbi_list; /**< Mailbox List */
 	struct tel_sim_mb_number mb_list[SIM_MSP_CNT_MAX * 5]; /**< Mailbox number */
 	enum tel_sim_file_id file_id; /**< Current file id */
@@ -1743,7 +1735,7 @@ static void __on_response_sim_get_response(TcorePending *p,
 						/* increment to next byte */
 						case 0x1:
 							dbg("Getting FileType: [Transparent file type]");
-							file_type = SIM_FILE_TYPE_TRANSPARENT;
+							file_type = SIM_FTYPE_TRANSPARENT;
 
 							/* increment to next byte */
 							ptr_data++;
@@ -1769,7 +1761,7 @@ static void __on_response_sim_get_response(TcorePending *p,
 							num_of_records = *ptr_data++;
 
 							/* Data lossy conversation from enum (int) to unsigned char */
-							file_type = SIM_FILE_TYPE_LINEAR_FIXED;
+							file_type = SIM_FTYPE_LINEAR_FIXED;
 						break;
 
 						case 0x6:
@@ -1787,7 +1779,7 @@ static void __on_response_sim_get_response(TcorePending *p,
 							SWAP_BYTES_16(record_len);
 							ptr_data = ptr_data + 2;
 							num_of_records = *ptr_data++;
-							file_type = SIM_FILE_TYPE_CYCLIC;
+							file_type = SIM_FTYPE_CYCLIC;
 						break;
 
 						default:
@@ -2003,14 +1995,14 @@ static void __on_response_sim_get_response(TcorePending *p,
 						/* increament to next byte as this byte is RFU */
 						ptr_data++;
 						file_type =
-							(file_type_tag == 0x00) ? SIM_FILE_TYPE_TRANSPARENT : SIM_FILE_TYPE_LINEAR_FIXED;
+							(file_type_tag == 0x00) ? SIM_FTYPE_TRANSPARENT : SIM_FTYPE_LINEAR_FIXED;
 					} else {
 						/* increment to next byte */
 						ptr_data++;
 
 						/* For a cyclic EF all bits except bit 7 are RFU; b7=1 indicates that */
 						/* the INCREASE command is allowed on the selected cyclic file. */
-						file_type = SIM_FILE_TYPE_CYCLIC;
+						file_type = SIM_FTYPE_CYCLIC;
 					}
 
 					/* bytes 9 to 11 give SIM file access conditions */

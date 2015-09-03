@@ -1541,13 +1541,8 @@ gboolean s_ss_init(TcorePlugin *p, TcoreHal *h)
 void s_ss_exit(TcorePlugin *p)
 {
 	CoreObject *o;
-	struct property_network_info *data;
 
 	o = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_SS);
-
-	data = tcore_plugin_ref_property(p, "SS");
-	if (data)
-		g_free(data);
 
 	tcore_ss_free(o);
 }

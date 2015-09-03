@@ -1101,7 +1101,7 @@ static void on_response_sms_get_param_count(TcorePending *pending, int data_len,
 									dbg("Getting FileType: [Transparent file type]");
 									/* increment to next byte */
 									ptr_data++;
-									file_type = 0x01; /* SIM_FTYPE_TRANSPARENT */
+									file_type = SIM_FTYPE_TRANSPARENT;
 
 									/* data coding byte - value 21 */
 									ptr_data++;
@@ -1124,7 +1124,7 @@ static void on_response_sms_get_param_count(TcorePending *pending, int data_len,
 									num_of_records = *ptr_data++;
 
 									/* Data lossy conversation from enum (int) to unsigned char */
-									file_type = 0x02;	/* SIM_FTYPE_LINEAR_FIXED */
+									file_type = SIM_FTYPE_LINEAR_FIXED;
 								break;
 
 								case 0x6:
@@ -1142,7 +1142,7 @@ static void on_response_sms_get_param_count(TcorePending *pending, int data_len,
 									record_len = SMS_SWAPBYTES16(record_len);
 									ptr_data = ptr_data + 2;
 									num_of_records = *ptr_data++;
-									file_type = 0x04;	/* SIM_FTYPE_CYCLIC */
+									file_type = SIM_FTYPE_CYCLIC;
 								break;
 
 								default:
@@ -1371,13 +1371,13 @@ static void on_response_sms_get_param_count(TcorePending *pending, int data_len,
 								/* increament to next byte as this byte is RFU */
 								ptr_data++;
 								file_type =
-									(file_type_tag == 0x00) ? 0x01 : 0x02; /* SIM_FTYPE_TRANSPARENT:SIM_FTYPE_LINEAR_FIXED; */
+									(file_type_tag == 0x00) ? SIM_FTYPE_TRANSPARENT : SIM_FTYPE_LINEAR_FIXED;
 							} else {
 								/* increment to next byte */
 								ptr_data++;
 								/* For a cyclic EF all bits except bit 7 are RFU; b7=1 indicates that */
 								/* the INCREASE command is allowed on the selected cyclic file. */
-								file_type = 0x04;	/* SIM_FTYPE_CYCLIC; */
+								file_type = SIM_FTYPE_CYCLIC;
 							}
 
 							/* bytes 9 to 11 give SIM file access conditions */
@@ -1856,21 +1856,11 @@ static struct tcore_sms_operations sms_ops = {
 gboolean s_sms_init(TcorePlugin *p, TcoreHal *hal)
 {
 	CoreObject *co;
-	struct property_sms_info *data = NULL;
 	int *smsp_record_len = NULL;
 
 	co = tcore_sms_new(p, "umts_sms", &sms_ops, hal);
 	if (!co) {
 		err("Failed to create SMS core object");
-		return FALSE;
-	}
-
-	data = g_try_malloc0(sizeof(struct property_sms_info));
-	if (NULL == data) {
-		err("Unable to initialize. Exiting");
-		s_sms_exit(p);
-
-		dbg("Exit");
 		return FALSE;
 	}
 
@@ -1881,8 +1871,6 @@ gboolean s_sms_init(TcorePlugin *p, TcoreHal *hal)
 	tcore_object_add_callback(co,
 		"+SCDEV",
 		on_notification_sms_device_ready, NULL);
-
-	tcore_plugin_link_property(p, "SMS", data);
 
 	/* Storing smsp record length */
 	smsp_record_len = g_try_malloc0(sizeof(int));
@@ -1896,12 +1884,16 @@ gboolean s_sms_init(TcorePlugin *p, TcoreHal *hal)
 void s_sms_exit(TcorePlugin *p)
 {
 	CoreObject *co;
+	int *smsp_record_len = NULL;
 
 	co = tcore_plugin_ref_core_object(p, CORE_OBJECT_TYPE_SMS);
 	if (!co) {
 		err("SMS core object is NULL");
 		return;
 	}
+
+	smsp_record_len = tcore_plugin_ref_property(p, "SMSPRECORDLEN");
+	g_free(smsp_record_len);
 
 	tcore_sms_free(co);
 }

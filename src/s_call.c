@@ -752,7 +752,7 @@ static gboolean on_notification_call_cssu_info(CoreObject *co,
 	break;
 
 	case 9:
-		command = TNOTI_CALL_INFO_DEFLECTED;
+		command = TNOTI_CALL_INFO_DEFLECTED_CALL;
 	break;
 
 	default:
