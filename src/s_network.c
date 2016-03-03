@@ -84,6 +84,7 @@ static unsigned int lookup_tbl_net_status[] = {
 #define AT_COPS_ACT_UTRAN_HSUPA		5 /* UTRAN w/HSUPA */
 #define AT_COPS_ACT_UTRAN_HSDPA_HSUPA	6 /* UTRAN w/HSDPA and HSUPA */
 #define AT_COPS_ACT_E_UTRAN			7 /* E-UTRAN */
+#define AT_COPS_ACT_MAX				8
 
 static unsigned int lookup_tbl_access_technology[] = {
 	[AT_COPS_ACT_GSM] = NETWORK_ACT_GSM,
@@ -325,7 +326,11 @@ static gboolean on_notification_atmodem_cs_network_info(CoreObject *co_network,
 
 		/* <AcT> */
 		if ((token_str = g_slist_nth_data(tokens, 3))) {
-			act = lookup_tbl_access_technology[atoi(token_str)]; /*TODO : Modify this mapping*/
+			gint idx = atoi(token_str);
+			if (idx >= 0 && idx < AT_COPS_ACT_MAX)
+				act = lookup_tbl_access_technology[idx];
+			else
+				act = NETWORK_ACT_UNKNOWN;
 			(void)tcore_network_set_access_technology(co_network, act);
 		} else {
 			dbg("No <AcT> in +CREG");
@@ -457,7 +462,11 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 
 		/* <AcT> */
 		if ((token_str = g_slist_nth_data(tokens, 3))) {
-			act = lookup_tbl_access_technology[atoi(token_str)];
+			gint idx = atoi(token_str);
+			if (idx >= 0 && idx < AT_COPS_ACT_MAX)
+				act = lookup_tbl_access_technology[idx];
+			else
+				act = NETWORK_ACT_UNKNOWN;
 			(void)tcore_network_set_access_technology(co_network, act);
 		} else {
 			dbg("No <AcT> in +CGREG");
@@ -784,9 +793,12 @@ static void on_response_network_search(TcorePending *p,
 			/* Parse Access Technology */
 			if ((resp = tcore_at_tok_nth(tokens, 4))) {
 				if (strlen(resp) > 0) {
-				gint act = atoi(resp);
-				dbg("AcT: [%d]", act);
-				nw_resp.list[count].act =  lookup_tbl_access_technology[act];
+					gint act = atoi(resp);
+					dbg("AcT: [%d]", act);
+					if (act >= 0 && act < AT_COPS_ACT_MAX)
+						nw_resp.list[count].act = lookup_tbl_access_technology[act];
+					else
+						nw_resp.list[count].act = NETWORK_ACT_UNKNOWN;
 				}
 			} else {
 					nw_resp.list[count].act = NETWORK_ACT_UMTS;
@@ -971,8 +983,12 @@ static void on_response_network_get_serving_network(TcorePending *p,
 
 			/* act */
 			if ((local_data = tcore_at_tok_nth(tokens, 3))) {
+				gint idx = atoi(local_data);
 				dbg("AcT  : %s", local_data);
-				act = lookup_tbl_access_technology[atoi(local_data)];
+				if (idx >= 0 && idx < AT_COPS_ACT_MAX)
+					act = lookup_tbl_access_technology[idx];
+				else
+					act = NETWORK_ACT_UNKNOWN;
 			}
 			nw_resp.act = act;
 

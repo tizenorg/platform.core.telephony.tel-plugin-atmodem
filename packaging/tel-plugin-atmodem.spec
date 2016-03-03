@@ -1,6 +1,6 @@
 %define major 0
 %define minor 1
-%define patchlevel 67
+%define patchlevel 68
 
 Name:              tel-plugin-atmodem
 Version:           %{major}.%{minor}.%{patchlevel}
