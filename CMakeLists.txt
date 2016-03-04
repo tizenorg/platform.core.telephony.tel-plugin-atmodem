@@ -6,10 +6,11 @@ SET(PREFIX ${CMAKE_INSTALL_PREFIX})
 SET(EXEC_PREFIX "\${prefix}")
 SET(LIBDIR ${LIB_INSTALL_DIR})
 SET(INCLUDEDIR "\${prefix}/include")
+SET(DATAROOTDIR "\${prefix}/share")
 
 # Set required packages
 INCLUDE(FindPkgConfig)
-pkg_check_modules(pkgs REQUIRED glib-2.0 tcore dlog)
+pkg_check_modules(pkgs REQUIRED glib-2.0 tcore dlog libtzplatform-config)
 
 FOREACH(flag ${pkgs_CFLAGS})
 	SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} ${flag}")
@@ -49,4 +50,4 @@ SET_TARGET_PROPERTIES(atmodem-plugin PROPERTIES PREFIX "" OUTPUT_NAME atmodem-pl
 INSTALL(TARGETS atmodem-plugin
 		LIBRARY DESTINATION ${LIBDIR}/telephony/plugins/modems)
 
-INSTALL(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION /usr/share/license RENAME tel-plugin-atmodem)
+INSTALL(FILES ${CMAKE_SOURCE_DIR}/LICENSE DESTINATION ${DATAROOTDIR}/license RENAME tel-plugin-atmodem)

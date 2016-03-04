@@ -1,6 +1,6 @@
 %define major 0
 %define minor 1
-%define patchlevel 68
+%define patchlevel 69
 
 Name:              tel-plugin-atmodem
 Version:           %{major}.%{minor}.%{patchlevel}
@@ -13,6 +13,7 @@ BuildRequires:     cmake
 BuildRequires:     pkgconfig(glib-2.0)
 BuildRequires:     pkgconfig(dlog)
 BuildRequires:     pkgconfig(tcore)
+BuildRequires:     pkgconfig(libtzplatform-config)
 Requires(post):    /sbin/ldconfig
 Requires(postun):  /sbin/ldconfig
 
@@ -42,4 +43,4 @@ cp LICENSE %{buildroot}/usr/share/license/%{name}
 %defattr(644,system,system,-)
 #%doc COPYING
 %{_libdir}/telephony/plugins/modems/atmodem-plugin*
-/usr/share/license/%{name}
+%{_datadir}/license/%{name}
