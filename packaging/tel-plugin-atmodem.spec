@@ -1,6 +1,6 @@
 %define major 0
 %define minor 1
-%define patchlevel 69
+%define patchlevel 70
 
 Name:              tel-plugin-atmodem
 Version:           %{major}.%{minor}.%{patchlevel}
@@ -9,6 +9,12 @@ License:           Apache-2.0
 Summary:           Telephony AT Modem library
 Group:             System/Libraries
 Source0:           tel-plugin-atmodem-%{version}.tar.gz
+
+%if %{_with_emulator}
+%else
+ExcludeArch: %{arm} aarch64
+%endif
+
 BuildRequires:     cmake
 BuildRequires:     pkgconfig(glib-2.0)
 BuildRequires:     pkgconfig(dlog)
