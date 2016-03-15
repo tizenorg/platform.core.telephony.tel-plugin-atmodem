@@ -10,7 +10,7 @@ Summary:           Telephony AT Modem library
 Group:             System/Libraries
 Source0:           tel-plugin-atmodem-%{version}.tar.gz
 
-%if %{_with_emulator}
+%if "%{_with_emulator}" == "1"
 %else
 ExcludeArch: %{arm} aarch64
 %endif
