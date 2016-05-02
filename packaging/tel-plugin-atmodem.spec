@@ -1,6 +1,6 @@
 %define major 0
 %define minor 1
-%define patchlevel 71
+%define patchlevel 72
 
 Name:              tel-plugin-atmodem
 Version:           %{major}.%{minor}.%{patchlevel}
@@ -49,7 +49,7 @@ cp LICENSE %{buildroot}/usr/share/license/%{name}
 
 %files
 %manifest tel-plugin-atmodem.manifest
-%defattr(644,system,system,-)
+%defattr(644,root,root,-)
 #%doc COPYING
 %{_libdir}/telephony/plugins/modems/atmodem-plugin*
 %{_datadir}/license/%{name}
