@@ -355,6 +355,9 @@ static enum tcore_response_command __find_resp_command(UserRequest *ur)
 	case TREQ_SIM_SET_POWERSTATE:
 		return TRESP_SIM_SET_POWERSTATE;
 
+	case TREQ_SIM_GET_GID:
+		return TRESP_SIM_GET_GID;
+
 	default:
 		err("Unknown/Unmapped Request command: [0x%x]", command);
 		break;
@@ -2802,6 +2805,23 @@ static TReturn __sim_get_msisdn(CoreObject *co_sim, UserRequest *ur)
 
 	return ret;
 }
+
+static TReturn __sim_get_gid(CoreObject *co_sim, UserRequest *ur)
+{
+	sim_meta_info_t *file_meta;
+	TReturn ret;
+
+	dbg("Entry");
+
+	ALLOC_METAINFO();
+	file_meta->file_id = SIM_EF_GID1;
+	file_meta->file_result = SIM_ACCESS_FAILED;
+	file_meta->req_command = TREQ_SIM_GET_GID;
+
+	ret = __sim_get_response(co_sim, ur, file_meta);
+
+	return ret;
+}
 /*
  * Operation - verify_pins/verify_puks/change_pins
  *
@@ -3058,6 +3078,10 @@ TReturn s_sim_read_file(CoreObject *co_sim, UserRequest *ur)
 
 	case TREQ_SIM_GET_MSISDN:
 		ret = __sim_get_msisdn(co_sim, ur);
+	break;
+
+	case TREQ_SIM_GET_GID:
+		ret = __sim_get_gid(co_sim, ur);
 	break;
 
 	case TREQ_SIM_GET_MESSAGEWAITING:

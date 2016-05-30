@@ -412,6 +412,21 @@ static TReturn get_version(CoreObject *co_modem, UserRequest *ur)
 	return ret;
 }
 
+static TReturn get_sn(CoreObject *co_modem, UserRequest *ur)
+{
+	struct tresp_modem_get_sn sn_resp = {0, };
+	TReturn ret;
+
+	sn_resp.result = TCORE_RETURN_SUCCESS;
+	g_strlcpy(sn_resp.meid, "123456789ABCDE", MODEM_DEVICE_MEID_LEN_MAX);
+
+	ret = tcore_user_request_send_response(ur,
+		TRESP_MODEM_GET_SN,
+		sizeof(struct tresp_modem_get_sn), &sn_resp);
+
+	return ret;
+}
+
 static TReturn set_flight_mode(CoreObject *co_modem, UserRequest *ur)
 {
 	gchar *at_cmd;
@@ -473,6 +488,7 @@ static struct tcore_modem_operations modem_ops = {
 	.set_flight_mode = set_flight_mode,
 	.get_imei = get_imei,
 	.get_version = get_version,
+	.get_sn = get_sn,
 	.get_flight_mode = get_flight_mode,
 };
 
