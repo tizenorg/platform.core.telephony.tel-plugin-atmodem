@@ -428,7 +428,9 @@ static gboolean on_notification_atmodem_ps_network_info(CoreObject *co_network,
 			err("No <stat> in +CGREG");
 			goto out;
 		}
-		ps_status = __atmodem_network_map_stat(atoi(token_str));
+		/* Emulator does not support ps doamin. so ps_status should be set no-service */
+		/* ps_status = __atmodem_network_map_stat(atoi(token_str)); */
+		ps_status = NETWORK_SERVICE_DOMAIN_STATUS_NO;
 		(void)tcore_network_set_service_status(co_network, TCORE_NETWORK_SERVICE_DOMAIN_TYPE_PACKET, ps_status);
 
 		/* <lac> */
